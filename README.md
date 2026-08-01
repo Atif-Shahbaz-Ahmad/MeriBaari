@@ -1,50 +1,71 @@
-# Welcome to your Expo app 👋
+# MeriBaari (My Turn)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Smart digital queue management — Day 1 foundation for Expo SDK 54 + Expo Go.
 
-## Get started
+## Stack
 
-1. Install dependencies
+- Expo SDK 54 · Expo Router · TypeScript
+- NativeWind · Plus Jakarta Sans
+- Supabase Auth · TanStack Query · Zustand
+- React Hook Form + Zod · Expo Secure Store
+- Reanimated · Gesture Handler · Lucide
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Run
 
 ```bash
-npm run reset-project
+npm install
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Scan the QR code with **Expo Go** (SDK 54).
 
-## Learn more
+### Demo auth (no Supabase yet)
 
-To learn more about developing your project with Expo, look at the following resources:
+Leave `.env` empty and use **Continue as Guest (Demo)**, or enter any valid phone/email and any 6-digit OTP.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### Real Supabase auth
 
-## Join the community
+Copy `.env.example` → `.env`:
 
-Join our community of developers creating universal apps.
+```
+EXPO_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=YOUR_ANON_KEY
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Enable Phone and/or Email OTP in the Supabase dashboard.
+
+## Structure
+
+```
+app/               Expo Router ((auth), (tabs), splash gate)
+components/        ui · cards · buttons · layout
+features/          auth · home (feature modules)
+hooks/ lib/ store/ types/ utils/ constants/
+assets/images/     branding-guide.png · ui-design-system.png
+```
+
+## Branding
+
+Logo usage follows `assets/images/branding-guide.png`:
+
+| Asset | Where |
+|-------|--------|
+| Full logo light/dark | Splash, onboarding, login |
+| Symbol mark | Compact UI / headers |
+| App icon blue/dark | Store & home screen (`app.json` icon fields) |
+
+In-app logos are SVG (`Logo` / `LogoMark`) matching primary `#2563EB` and secondary `#10B981`.
+
+## Scripts
+
+| Command | Purpose |
+|---------|---------|
+| `npm start` | Expo Go |
+| `npm run lint` | ESLint |
+| `npm run format` | Prettier |
+
+## Day 1 scope
+
+Done: design system, splash, onboarding, auth gate, home UI (mock), tabs.
+
+Not yet: live queues, real QR tickets, push wiring, admin.

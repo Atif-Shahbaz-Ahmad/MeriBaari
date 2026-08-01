@@ -31,10 +31,15 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
 
 # typescript
 *.tsbuildinfo
+
+# check exports
+dist-web-check
+dist-android-check
 
 app-example
 
