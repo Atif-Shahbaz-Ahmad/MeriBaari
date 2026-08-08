@@ -1,9 +1,23 @@
-export type QueueStatus = 'waiting' | 'called' | 'serving' | 'completed' | 'cancelled';
+export type QueueStatus =
+  | 'waiting'
+  | 'almost'
+  | 'serving'
+  | 'completed'
+  | 'cancelled'
+  | 'missed'
+  | 'called';
 
 export interface QueueTicket {
   id: string;
   ticketNumber: string;
+  queueId: string;
+  organizationId: string;
+  /** Display name — kept as `locationName` for Home QueueCard compatibility */
   locationName: string;
+  organizationName: string;
+  departmentId: string;
+  departmentName: string;
+  serviceId: string;
   serviceName: string;
   status: QueueStatus;
   position: number;
@@ -12,6 +26,51 @@ export interface QueueTicket {
   currentServing: string;
   counter?: string;
   joinedAt: string;
+  completedAt?: string;
+  cancelledAt?: string;
+  estimatedCompletionAt?: string;
+  reminderEnabled: boolean;
+  /** Actual wait once completed */
+  actualWaitMinutes?: number;
+  logoIcon?:
+    | 'hospital'
+    | 'bank'
+    | 'building'
+    | 'clinic'
+    | 'university'
+    | 'utensils'
+    | 'landmark'
+    | 'car';
+}
+
+export interface QueueTimelineEntry {
+  ticketNumber: string;
+  label?: string;
+  isYou?: boolean;
+  isServing?: boolean;
+  isPast?: boolean;
+}
+
+export interface QueueProgressDetails {
+  queueId: string;
+  ticketId: string;
+  capacity: number;
+  currentPosition: number;
+  peopleRemaining: number;
+  averageServiceMinutes: number;
+  estimatedFinishAt: string;
+  currentServing: string;
+  /** Tickets served per hour */
+  queueSpeed: number;
+  lastUpdatedAt: string;
+  timeline: QueueTimelineEntry[];
+}
+
+export interface TicketStatistics {
+  queuesJoined: number;
+  hoursSaved: number;
+  averageWaitingMinutes: number;
+  favoriteOrganization: string;
 }
 
 export interface NearbyService {

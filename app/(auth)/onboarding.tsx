@@ -27,6 +27,7 @@ import {
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { AuthHref } from '@/features/auth/navigation';
 import { useColorScheme, useTheme } from '@/hooks/use-theme';
 import { useOnboardingStore } from '@/store/onboarding-store';
 
@@ -42,7 +43,7 @@ export default function OnboardingScreen() {
 
   const finish = async () => {
     await completeOnboarding();
-    router.replace('/(auth)/login');
+    router.replace(AuthHref.welcome);
   };
 
   const goNext = () => {

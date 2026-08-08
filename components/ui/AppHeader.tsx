@@ -36,8 +36,14 @@ export function AppHeader({
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Notifications"
+        accessibilityLabel={
+          notificationCount > 0
+            ? `Notifications, ${notificationCount} unread`
+            : 'Notifications'
+        }
+        accessibilityHint="Opens your notification center"
         onPress={onNotificationPress}
+        hitSlop={8}
         style={[styles.bellButton, { backgroundColor: theme.card, borderColor: theme.border }]}
       >
         <Bell size={20} color={theme.text} strokeWidth={2} />

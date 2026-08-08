@@ -1,4 +1,4 @@
-import { StyleSheet, View, type ViewProps, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewProps, type ViewStyle } from 'react-native';
 
 import { Radius, Shadows, Spacing } from '@/constants/spacing';
 import { useTheme } from '@/hooks/use-theme';
@@ -6,7 +6,7 @@ import { useTheme } from '@/hooks/use-theme';
 interface CardProps extends ViewProps {
   padded?: boolean;
   elevated?: boolean;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function Card({ children, padded = true, elevated = true, style, ...rest }: CardProps) {

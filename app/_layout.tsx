@@ -77,7 +77,10 @@ export default function RootLayout() {
           <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
             <Stack.Screen name="index" />
             <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="auth" options={{ animation: 'none' }} />
+            <Stack.Screen name="(customer)" />
+            <Stack.Screen name="(business)" />
+            <Stack.Screen name="profile" options={{ animation: 'slide_from_right' }} />
           </Stack>
           <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
         </ThemeProvider>

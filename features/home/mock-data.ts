@@ -1,20 +1,13 @@
 import type { ActivityItem, NearbyService, QueueTicket, QuickAction } from '@/types';
+import { dataAccess, getContainer } from '@/data';
 
-export const mockCurrentTicket: QueueTicket = {
-  id: 'ticket-1',
-  ticketNumber: 'A-127',
-  locationName: 'City Hospital',
-  serviceName: 'General OPD',
-  status: 'waiting',
-  position: 3,
-  peopleAhead: 3,
-  estimatedWaitMinutes: 12,
-  currentServing: 'A-124',
-  counter: '03',
-  joinedAt: new Date(Date.now() - 1000 * 60 * 18).toISOString(),
-};
+const MOCK_TICKETS = getContainer().mockTicketRepository.getSeedTickets();
 
-export const mockProgressSequence = ['A-123', 'A-124', 'A-125', 'A-126', 'A-127'];
+/** @deprecated Prefer useTicketStore — kept for Home activity / nearby mocks */
+export const mockCurrentTicket: QueueTicket =
+  dataAccess.getPrimaryActiveTicket(MOCK_TICKETS) ?? MOCK_TICKETS[0];
+
+export const mockProgressSequence = dataAccess.getProgressSequence(mockCurrentTicket.id);
 
 export const mockNearbyServices: NearbyService[] = [
   {
@@ -109,6 +102,7 @@ export const mockNotifications = [
   },
 ];
 
+/** @deprecated Prefer MOCK_PROFILE_STATS from @/data */
 export const mockProfileStats = {
   queuesJoined: 28,
   timeSavedHours: 18,

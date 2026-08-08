@@ -32,3 +32,25 @@ export function maskDestination(value: string, channel: 'phone' | 'email'): stri
   if (value.length < 4) return value;
   return `${value.slice(0, -4).replace(/\d/g, '•')}${value.slice(-4)}`;
 }
+
+export function formatTicketDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-PK', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+export function formatTicketTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('en-PK', {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+export function formatClockTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('en-PK', {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}

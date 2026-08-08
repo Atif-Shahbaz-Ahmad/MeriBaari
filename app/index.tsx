@@ -11,16 +11,17 @@ import Animated, {
 
 import { Logo } from '@/components/layout/Logo';
 import { Colors } from '@/constants/colors';
+import { AuthHref, getHomeHref, getUnauthenticatedHref } from '@/features/auth/navigation';
 import { useAppBootstrap } from '@/hooks/use-auth';
 import { useColorScheme } from '@/hooks/use-theme';
 
 /**
- * Animated splash + auth/onboarding gate.
- * Checks session & onboarding, then redirects automatically.
+ * Animated splash + auth/onboarding/role gate.
+ * Session restore completes before any auth screen — no login flash.
  */
 export default function SplashGate() {
   const scheme = useColorScheme();
-  const { isReady, isAuthenticated, hasCompletedOnboarding } = useAppBootstrap();
+  const { isReady, isAuthenticated, hasCompletedOnboarding, role } = useAppBootstrap();
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.92);
 
@@ -48,12 +49,12 @@ export default function SplashGate() {
 
   if (isReady) {
     if (!hasCompletedOnboarding) {
-      return <Redirect href="/(auth)/onboarding" />;
+      return <Redirect href={AuthHref.onboarding} />;
     }
     if (!isAuthenticated) {
-      return <Redirect href="/(auth)/login" />;
+      return <Redirect href={getUnauthenticatedHref()} />;
     }
-    return <Redirect href="/(tabs)" />;
+    return <Redirect href={getHomeHref(role)} />;
   }
 
   const isDark = scheme === 'dark';

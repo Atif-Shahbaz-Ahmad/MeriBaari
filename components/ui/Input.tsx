@@ -27,6 +27,10 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
   ref,
 ) {
   const theme = useTheme();
+  const errorText =
+    typeof error === 'string' && error.trim() && error.trim() !== '{}'
+      ? error.trim()
+      : null;
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -36,7 +40,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
           styles.field,
           {
             backgroundColor: theme.background,
-            borderColor: error ? Colors.error : theme.border,
+            borderColor: errorText ? Colors.error : theme.border,
           },
         ]}
       >
@@ -49,8 +53,10 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
         />
         {rightElement}
       </View>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      {!error && hint ? <Text style={[styles.hint, { color: theme.textMuted }]}>{hint}</Text> : null}
+      {errorText ? <Text style={styles.error}>{errorText}</Text> : null}
+      {!errorText && hint ? (
+        <Text style={[styles.hint, { color: theme.textMuted }]}>{hint}</Text>
+      ) : null}
     </View>
   );
 });

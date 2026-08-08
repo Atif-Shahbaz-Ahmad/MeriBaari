@@ -1,5 +1,10 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Clock3, Users } from 'lucide-react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 
 import { Card } from '@/components/ui/Card';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -12,19 +17,26 @@ import type { QueueTicket } from '@/types';
 
 interface QueueCardProps {
   ticket: QueueTicket;
+  onPress?: () => void;
 }
 
-export function QueueCard({ ticket }: QueueCardProps) {
-  const theme = useTheme();
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-  return (
-    <Card style={styles.card}>
+export function QueueCard({ ticket, onPress }: QueueCardProps) {
+  const theme = useTheme();
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const content = (
+    <>
       <View style={styles.header}>
         <View>
           <Text style={[styles.label, { color: theme.textSecondary }]}>Current Ticket</Text>
           <Text style={[styles.ticket, { color: theme.text }]}>{ticket.ticketNumber}</Text>
         </View>
-        <StatusBadge status="live" />
+        <StatusBadge status={ticket.status === 'waiting' ? 'live' : ticket.status} />
       </View>
 
       <Text style={[styles.location, { color: theme.textSecondary }]}>
@@ -48,8 +60,27 @@ export function QueueCard({ ticket }: QueueCardProps) {
           value={String(ticket.peopleAhead)}
         />
       </View>
-    </Card>
+    </>
   );
+
+  if (onPress) {
+    return (
+      <AnimatedPressable
+        onPress={onPress}
+        onPressIn={() => {
+          scale.value = withSpring(0.98);
+        }}
+        onPressOut={() => {
+          scale.value = withSpring(1);
+        }}
+        style={animatedStyle}
+      >
+        <Card style={styles.card}>{content}</Card>
+      </AnimatedPressable>
+    );
+  }
+
+  return <Card style={styles.card}>{content}</Card>;
 }
 
 function Metric({

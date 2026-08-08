@@ -24,11 +24,19 @@ export function Avatar({ name, uri, size = 48, style }: AvatarProps) {
         },
         style,
       ]}
+      accessibilityRole="image"
+      accessibilityLabel={name ? `Avatar for ${name}` : 'User avatar'}
     >
       {uri ? (
-        <Image source={{ uri }} style={{ width: size, height: size, borderRadius: size / 2 }} />
+        <Image
+          source={{ uri }}
+          style={{ width: size, height: size, borderRadius: size / 2 }}
+          accessibilityIgnoresInvertColors
+        />
       ) : (
-        <Text style={[styles.initials, { fontSize: size * 0.36 }]}>{initials}</Text>
+        <Text style={[styles.initials, { fontSize: Math.max(12, size * 0.36) }]} importantForAccessibility="no">
+          {initials}
+        </Text>
       )}
     </View>
   );

@@ -9,4 +9,5 @@ export const StorageKeys = {
   authSession: 'meribaari_auth_session',
   themePreference: 'meribaari_theme_preference',
   demoUser: 'meribaari_demo_user',
+  userPreferences: 'meribaari_user_preferences',
 } as const;
