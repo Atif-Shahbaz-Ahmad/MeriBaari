@@ -34,6 +34,11 @@ yarn-error.*
 .env
 .env*.local
 
+# Firebase FCM V1 *service account* private keys (never commit)
+# google-services.json is client config and MUST be git-tracked for EAS Build.
+*-firebase-adminsdk-*.json
+firebase-service-account*.json
+
 # typescript
 *.tsbuildinfo
 

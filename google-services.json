@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1026005625676",
+    "project_id": "meribaari-e18f1",
+    "storage_bucket": "meribaari-e18f1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1026005625676:android:510d7ebce58dd2d35e3de9",
+        "android_client_info": {
+          "package_name": "app.meribaari.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAaiPYTyxnpuGkUudKNKFOVBBGYEFvGchc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
