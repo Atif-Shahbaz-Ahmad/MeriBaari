@@ -15,9 +15,9 @@ import {
   AuthService,
   BusinessService,
   CatalogService,
+  DepartmentService,
   NotificationService,
   OrganizationService,
-  OrganizationStructureService,
   ProfileService,
   QueueService,
   ServiceService,
@@ -33,6 +33,8 @@ import {
   type QrValidationService,
   type RealtimeService,
 } from '@/domain/future';
+import type { NotificationPermissionService } from '@/domain/services/notification-permission.service';
+import type { PushTokenRepository } from '@/domain/repositories/push-token.repository';
 import {
   MockAuthRepository,
   MockBusinessSettingsRepository,
@@ -46,17 +48,30 @@ import {
   MockServiceRepository,
   MockTicketRepository,
 } from '@/data/mock';
+import { MockPushTokenRepository } from '@/data/mock/mock-push-token.repository';
 import {
   SupabaseAuthRepository,
+  SupabaseDepartmentRepository,
+  SupabaseOrganizationRepository,
   SupabaseProfileRepository,
+  SupabaseQueueEntryRepository,
+  SupabaseQueueRepository,
+  SupabaseRealtimeService,
+  SupabaseNotificationRepository,
+  SupabaseServiceRepository,
+  SupabaseTicketRepository,
 } from '@/data/supabase';
+import { SupabasePushTokenRepository } from '@/data/supabase/supabase-push-token.repository';
+import { ExpoNotificationPermissionService } from '@/data/notifications/expo-notification-permission.service';
+import { ExpoPushNotificationService } from '@/data/notifications/expo-push-notification.service';
 import { isSupabaseConfigured } from '@/lib/supabase';
 
 /**
  * Application dependency container.
  *
- * Auth + Profile use Supabase when configured; everything else stays mock
- * until those domains are wired.
+ * Auth + Profile + Organizations + Departments + Services + Queues/Tickets
+ * + Realtime + Notifications use Supabase when configured; remaining domains
+ * stay mock until wired.
  */
 export interface AppContainer {
   profileRepository: ProfileRepository;
@@ -74,7 +89,7 @@ export interface AppContainer {
   authService: AuthService;
   profileService: ProfileService;
   organizationService: OrganizationService;
-  departmentService: OrganizationStructureService;
+  departmentService: DepartmentService;
   serviceService: ServiceService;
   queueService: QueueService;
   ticketService: TicketService;
@@ -83,6 +98,8 @@ export interface AppContainer {
   catalogService: CatalogService;
 
   realtimeService: RealtimeService;
+  notificationPermissionService: NotificationPermissionService;
+  pushTokenRepository: PushTokenRepository;
   pushNotificationService: PushNotificationService;
   qrValidationService: QrValidationService;
   fileStorageService: FileStorageService;
@@ -105,15 +122,57 @@ export function createAppContainer(): AppContainer {
     ? new SupabaseAuthRepository()
     : new MockAuthRepository();
 
-  const organizationRepository = new MockOrganizationRepository();
-  const departmentRepository = new MockDepartmentRepository();
-  const serviceRepository = new MockServiceRepository();
-  const queueRepository = new MockQueueRepository();
-  const queueEntryRepository = new MockQueueEntryRepository();
-  const ticketRepository = new MockTicketRepository();
-  const notificationRepository = new MockNotificationRepository();
+  const organizationRepository: OrganizationRepository = useSupabaseAuth
+    ? new SupabaseOrganizationRepository()
+    : new MockOrganizationRepository();
+  const departmentRepository: DepartmentRepository = useSupabaseAuth
+    ? new SupabaseDepartmentRepository()
+    : new MockDepartmentRepository();
+  const serviceRepository: ServiceRepository = useSupabaseAuth
+    ? new SupabaseServiceRepository()
+    : new MockServiceRepository();
+  const queueRepository: QueueRepository = useSupabaseAuth
+    ? new SupabaseQueueRepository()
+    : new MockQueueRepository();
+  const queueEntryRepository: QueueEntryRepository = useSupabaseAuth
+    ? new SupabaseQueueEntryRepository()
+    : new MockQueueEntryRepository();
+  const ticketRepository: TicketRepository = useSupabaseAuth
+    ? new SupabaseTicketRepository()
+    : new MockTicketRepository();
+  const notificationRepository: NotificationRepository = useSupabaseAuth
+    ? new SupabaseNotificationRepository()
+    : new MockNotificationRepository();
   const businessSettingsRepository = new MockBusinessSettingsRepository();
   const catalogRepository = new MockCatalogRepository();
+
+  const mockQueueRepository =
+    queueRepository instanceof MockQueueRepository
+      ? queueRepository
+      : new MockQueueRepository();
+  const mockQueueEntryRepository =
+    queueEntryRepository instanceof MockQueueEntryRepository
+      ? queueEntryRepository
+      : new MockQueueEntryRepository();
+  const mockTicketRepository =
+    ticketRepository instanceof MockTicketRepository
+      ? ticketRepository
+      : new MockTicketRepository();
+  const mockNotificationRepository =
+    notificationRepository instanceof MockNotificationRepository
+      ? notificationRepository
+      : new MockNotificationRepository();
+
+  const pushTokenRepository: PushTokenRepository = useSupabaseAuth
+    ? new SupabasePushTokenRepository()
+    : new MockPushTokenRepository();
+  const notificationPermissionService = new ExpoNotificationPermissionService();
+  const pushNotificationService: PushNotificationService = useSupabaseAuth
+    ? new ExpoPushNotificationService(
+        notificationPermissionService,
+        pushTokenRepository,
+      )
+    : new UnimplementedPushNotificationService();
 
   return {
     profileRepository,
@@ -131,11 +190,15 @@ export function createAppContainer(): AppContainer {
     authService: new AuthService(authRepository, profileRepository),
     profileService: new ProfileService(profileRepository),
     organizationService: new OrganizationService(organizationRepository),
-    departmentService: new OrganizationStructureService(
+    departmentService: new DepartmentService(
       departmentRepository,
-      serviceRepository,
+      organizationRepository,
     ),
-    serviceService: new ServiceService(serviceRepository),
+    serviceService: new ServiceService(
+      serviceRepository,
+      departmentRepository,
+      organizationRepository,
+    ),
     queueService: new QueueService(queueRepository, queueEntryRepository),
     ticketService: new TicketService(ticketRepository),
     notificationService: new NotificationService(notificationRepository),
@@ -147,16 +210,20 @@ export function createAppContainer(): AppContainer {
     ),
     catalogService: new CatalogService(catalogRepository, authRepository),
 
-    realtimeService: new UnimplementedRealtimeService(),
-    pushNotificationService: new UnimplementedPushNotificationService(),
+    realtimeService: useSupabaseAuth
+      ? new SupabaseRealtimeService()
+      : new UnimplementedRealtimeService(),
+    notificationPermissionService,
+    pushTokenRepository,
+    pushNotificationService,
     qrValidationService: new UnimplementedQrValidationService(),
     fileStorageService: new UnimplementedFileStorageService(),
 
-    mockTicketRepository: ticketRepository,
-    mockNotificationRepository: notificationRepository,
+    mockTicketRepository,
+    mockNotificationRepository,
     mockBusinessSettingsRepository: businessSettingsRepository,
-    mockQueueRepository: queueRepository,
-    mockQueueEntryRepository: queueEntryRepository,
+    mockQueueRepository,
+    mockQueueEntryRepository,
     mockCatalogRepository: catalogRepository,
   };
 }

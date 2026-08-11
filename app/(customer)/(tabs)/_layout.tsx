@@ -4,11 +4,15 @@ import { Platform } from 'react-native';
 
 import { Colors } from '@/constants/colors';
 import { useTheme } from '@/hooks/use-theme';
-import { useNotificationStore } from '@/store/notification-store';
+import {
+  useNotificationsRealtime,
+  useUnreadNotificationCount,
+} from '@/features/notifications/hooks/use-notifications';
 
 export default function TabsLayout() {
   const theme = useTheme();
-  const unreadCount = useNotificationStore((s) => s.unreadCount());
+  useNotificationsRealtime();
+  const { data: unreadCount = 0 } = useUnreadNotificationCount();
 
   return (
     <Tabs
@@ -34,7 +38,9 @@ export default function TabsLayout() {
         options={{
           title: 'Home',
           tabBarAccessibilityLabel: 'Home tab',
-          tabBarIcon: ({ color, size }) => <Home color={color} size={size} strokeWidth={2} />,
+          tabBarIcon: ({ color, size }) => (
+            <Home color={color} size={size} strokeWidth={2} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -42,7 +48,9 @@ export default function TabsLayout() {
         options={{
           title: 'My Tickets',
           tabBarAccessibilityLabel: 'My Tickets tab',
-          tabBarIcon: ({ color, size }) => <Ticket color={color} size={size} strokeWidth={2} />,
+          tabBarIcon: ({ color, size }) => (
+            <Ticket color={color} size={size} strokeWidth={2} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -59,7 +67,9 @@ export default function TabsLayout() {
             fontSize: 10,
             fontFamily: 'PlusJakartaSans_600SemiBold',
           },
-          tabBarIcon: ({ color, size }) => <Bell color={color} size={size} strokeWidth={2} />,
+          tabBarIcon: ({ color, size }) => (
+            <Bell color={color} size={size} strokeWidth={2} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -67,7 +77,9 @@ export default function TabsLayout() {
         options={{
           title: 'Profile',
           tabBarAccessibilityLabel: 'Profile tab',
-          tabBarIcon: ({ color, size }) => <UserRound color={color} size={size} strokeWidth={2} />,
+          tabBarIcon: ({ color, size }) => (
+            <UserRound color={color} size={size} strokeWidth={2} />
+          ),
         }}
       />
     </Tabs>

@@ -13,6 +13,17 @@ export const BusinessHref = {
       : '/(business)/activity') as Href,
   walkIn: '/(business)/walk-in' as Href,
   walkInSuccess: '/(business)/walk-in/success' as Href,
+  createOrganization: '/(business)/organization/create' as Href,
+  editOrganization: '/(business)/organization/edit' as Href,
+  createDepartment: '/(business)/department/create' as Href,
+  departmentDetails: (departmentId: string) =>
+    `/(business)/department/${departmentId}` as Href,
+  editDepartment: (departmentId: string) =>
+    `/(business)/department/${departmentId}/edit` as Href,
+  createService: (departmentId: string) =>
+    `/(business)/department/${departmentId}/service/create` as Href,
+  editService: (departmentId: string, serviceId: string) =>
+    `/(business)/department/${departmentId}/service/${serviceId}/edit` as Href,
 } as const;
 
 export function pushQueueDetails(queueId: string) {
@@ -37,4 +48,36 @@ export function replaceBusinessHome() {
 
 export function pushQueueTab() {
   router.push(BusinessHref.queueTab);
+}
+
+export function pushCreateOrganization() {
+  router.push(BusinessHref.createOrganization);
+}
+
+export function replaceCreateOrganization() {
+  router.replace(BusinessHref.createOrganization);
+}
+
+export function pushEditOrganization() {
+  router.push(BusinessHref.editOrganization);
+}
+
+export function pushCreateDepartment() {
+  router.push(BusinessHref.createDepartment);
+}
+
+export function pushDepartmentDetails(departmentId: string) {
+  router.push(BusinessHref.departmentDetails(departmentId));
+}
+
+export function pushEditDepartment(departmentId: string) {
+  router.push(BusinessHref.editDepartment(departmentId));
+}
+
+export function pushCreateService(departmentId: string) {
+  router.push(BusinessHref.createService(departmentId));
+}
+
+export function pushEditService(departmentId: string, serviceId: string) {
+  router.push(BusinessHref.editService(departmentId, serviceId));
 }

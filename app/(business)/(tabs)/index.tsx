@@ -1,10 +1,12 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
+  Building2,
   Clock3,
   Megaphone,
   PauseCircle,
   PlayCircle,
+  Settings2,
   UserPlus,
   Users,
   UserCheck,
@@ -15,44 +17,130 @@ import {
   QueueOverviewCard,
   QuickActionTile,
 } from '@/components/business';
+import { PrimaryButton } from '@/components/buttons/PrimaryButton';
 import { Screen } from '@/components/layout/Screen';
 import { Avatar } from '@/components/ui/Avatar';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { SectionHeader } from '@/components/ui/SectionHeader';
+import { getOrganizationCategoryLabel } from '@/constants/organization-categories';
 import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { getOrganizationErrorMessage } from '@/domain/errors/organization-error';
+import { getQueueErrorMessage } from '@/domain/errors/queue-error';
 import {
+  pushCreateOrganization,
+  pushEditOrganization,
   pushQueueActivity,
   pushQueueDetails,
   pushQueueTab,
   pushWalkIn,
 } from '@/features/business/navigation';
+import { useMyOrganization } from '@/features/organization/hooks/use-organizations';
+import {
+  useCallNext,
+  usePauseQueue,
+  useResumeQueue,
+} from '@/features/queue/hooks/use-queue-mutations';
+import { useBusinessQueues } from '@/features/queue/hooks/use-queue-queries';
+import { useBusinessQueueRealtime } from '@/features/queue/hooks/use-queue-realtime';
 import { useAuth } from '@/hooks/use-auth';
 import { useTheme } from '@/hooks/use-theme';
 import { dataAccess } from '@/data';
-import { useBusinessQueueStore } from '@/store/business-queue-store';
-
-const MOCK_BUSINESS_DASHBOARD_STATS = dataAccess.MOCK_BUSINESS_DASHBOARD_STATS;
-const MOCK_BUSINESS_ORG = dataAccess.MOCK_BUSINESS_ORG;
 
 export default function BusinessDashboardScreen() {
   const theme = useTheme();
   const { user } = useAuth();
   const name = user?.fullName?.split(' ')[0] ?? 'there';
-  const queues = useBusinessQueueStore((s) => s.queues);
-  const selectedQueueId = useBusinessQueueStore((s) => s.selectedQueueId);
-  const selectQueue = useBusinessQueueStore((s) => s.selectQueue);
-  const callNext = useBusinessQueueStore((s) => s.callNext);
-  const setQueueStatus = useBusinessQueueStore((s) => s.setQueueStatus);
+  const {
+    data: organization,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useMyOrganization();
 
-  const selected = queues.find((q) => q.id === selectedQueueId) ?? queues[0];
-  const stats = MOCK_BUSINESS_DASHBOARD_STATS;
+  const { data: queues = [] } = useBusinessQueues(organization?.id);
+  useBusinessQueueRealtime(organization?.id, queues[0]?.id);
+  const callNextMutation = useCallNext();
+  const pauseQueueMutation = usePauseQueue();
+  const resumeQueueMutation = useResumeQueue();
+
+  const selected = queues[0];
   const waitingFromQueues = queues.reduce((sum, q) => sum + q.waitingCount, 0);
+  const avgWait =
+    queues.length > 0
+      ? Math.round(
+          queues.reduce((sum, q) => sum + q.averageWaitMinutes, 0) / queues.length,
+        )
+      : organization?.averageWaitMinutes ?? 0;
 
-  const openQueueOps = (queueId: string) => {
-    selectQueue(queueId);
+  const openQueueOps = (_queueId: string) => {
     pushQueueTab();
   };
+
+  if (isLoading) {
+    return (
+      <Screen>
+        <LoadingSkeleton count={4} variant="detail" />
+      </Screen>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Screen>
+        <ErrorState
+          title="Could not load organization"
+          description={getOrganizationErrorMessage(error)}
+          onRetry={() => void refetch()}
+        />
+      </Screen>
+    );
+  }
+
+  if (!organization) {
+    return (
+      <Screen padded={false}>
+        <ScrollView
+          contentContainerStyle={styles.onboardingContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <Animated.View entering={FadeInDown.duration(400)} style={styles.padded}>
+            <Card style={styles.onboardingCard}>
+              <View style={[styles.onboardingIcon, { backgroundColor: Colors.primary50 }]}>
+                <Building2 size={32} color={Colors.primary} strokeWidth={1.75} />
+              </View>
+              <Text style={[styles.onboardingTitle, { color: theme.text }]}>
+                Create Your Organization
+              </Text>
+              <Text style={[styles.onboardingBody, { color: theme.textSecondary }]}>
+                Set up your business profile so customers can discover you and join
+                your queues. Departments and queues can be added next.
+              </Text>
+              <PrimaryButton
+                title="Create Organization"
+                onPress={pushCreateOrganization}
+              />
+            </Card>
+          </Animated.View>
+          <EmptyState
+            title={`Welcome, ${name}`}
+            description="Your business dashboard will appear here after you create an organization."
+          />
+        </ScrollView>
+      </Screen>
+    );
+  }
+
+  const categoryLabel = getOrganizationCategoryLabel(organization.category);
+  const locationLabel = [organization.city, organization.address]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <Screen padded={false}>
@@ -60,11 +148,24 @@ export default function BusinessDashboardScreen() {
         <Animated.View entering={FadeInDown.duration(400)} style={styles.padded}>
           <View style={[styles.hero, { backgroundColor: Colors.primary }]}>
             <View style={styles.heroTop}>
-              <Avatar name={MOCK_BUSINESS_ORG.name} size={56} style={styles.logo} />
+              <Avatar
+                name={organization.name}
+                uri={organization.logoUrl}
+                size={56}
+                style={styles.logo}
+              />
               <View style={styles.heroCopy}>
-                <Text style={styles.orgName}>{MOCK_BUSINESS_ORG.name}</Text>
+                <Text style={styles.orgName}>{organization.name}</Text>
                 <Text style={styles.orgMeta}>
-                  {MOCK_BUSINESS_ORG.categoryLabel} · {MOCK_BUSINESS_ORG.location}
+                  {categoryLabel}
+                  {locationLabel ? ` · ${locationLabel}` : ''}
+                </Text>
+                <Text style={styles.orgStatus}>
+                  {organization.isActive ? 'Active' : 'Inactive'} ·{' '}
+                  {organization.description
+                    ? organization.description.slice(0, 80) +
+                      (organization.description.length > 80 ? '…' : '')
+                    : 'No description yet'}
                 </Text>
               </View>
             </View>
@@ -72,14 +173,22 @@ export default function BusinessDashboardScreen() {
               {dataAccess.getBusinessGreeting()}, {name}
             </Text>
             <Text style={styles.date}>{dataAccess.formatBusinessDate()}</Text>
+            <Button
+              title="Manage organization"
+              variant="secondary"
+              size="sm"
+              leftIcon={<Settings2 size={16} color={Colors.primary} />}
+              onPress={pushEditOrganization}
+              style={styles.manageButton}
+            />
           </View>
         </Animated.View>
 
         <View style={styles.padded}>
           <View style={styles.statsRow}>
             <BusinessStatCard
-              label="Today's Customers"
-              value={stats.todaysCustomers}
+              label="Active Queues"
+              value={queues.filter((q) => q.status === 'active').length}
               icon={<Users size={18} color={Colors.primary} />}
               accent="blue"
               index={0}
@@ -94,15 +203,15 @@ export default function BusinessDashboardScreen() {
           </View>
           <View style={styles.statsRow}>
             <BusinessStatCard
-              label="Customers Served"
-              value={stats.customersServed}
+              label="Open Services"
+              value={queues.length}
               icon={<UserCheck size={18} color={Colors.secondary600} />}
               accent="green"
               index={2}
             />
             <BusinessStatCard
               label="Avg. Waiting Time"
-              value={stats.averageWaitingMinutes}
+              value={avgWait}
               suffix=" min"
               icon={<Clock3 size={18} color={Colors.primary} />}
               accent="blue"
@@ -119,11 +228,14 @@ export default function BusinessDashboardScreen() {
               icon={<Megaphone size={20} color={Colors.primary} />}
               tint="blue"
               onPress={() => {
-                if (selected) {
-                  selectQueue(selected.id);
-                  callNext(selected.id);
+                if (!selected) {
                   pushQueueTab();
+                  return;
                 }
+                void callNextMutation
+                  .mutateAsync(selected.id)
+                  .then(() => pushQueueTab())
+                  .catch((e) => Alert.alert('Call next', getQueueErrorMessage(e)));
               }}
             />
             <QuickActionTile
@@ -137,14 +249,24 @@ export default function BusinessDashboardScreen() {
               icon={<PauseCircle size={20} color="#B45309" />}
               tint="orange"
               disabled={!selected || selected.status === 'paused'}
-              onPress={() => selected && setQueueStatus(selected.id, 'paused')}
+              onPress={() => {
+                if (!selected) return;
+                void pauseQueueMutation
+                  .mutateAsync(selected.id)
+                  .catch((e) => Alert.alert('Pause queue', getQueueErrorMessage(e)));
+              }}
             />
             <QuickActionTile
               label="Resume Queue"
               icon={<PlayCircle size={20} color={Colors.secondary600} />}
               tint="green"
               disabled={!selected || selected.status === 'active'}
-              onPress={() => selected && setQueueStatus(selected.id, 'active')}
+              onPress={() => {
+                if (!selected) return;
+                void resumeQueueMutation
+                  .mutateAsync(selected.id)
+                  .catch((e) => Alert.alert('Resume queue', getQueueErrorMessage(e)));
+              }}
             />
           </View>
         </Animated.View>
@@ -156,14 +278,21 @@ export default function BusinessDashboardScreen() {
             actionLabel="Activity"
             onActionPress={() => pushQueueActivity()}
           />
-          {queues.map((queue, index) => (
-            <QueueOverviewCard
-              key={queue.id}
-              queue={queue}
-              index={index}
-              onPress={() => openQueueOps(queue.id)}
+          {queues.length === 0 ? (
+            <EmptyState
+              title="No active queues"
+              description="Queues are created automatically when customers join your services."
             />
-          ))}
+          ) : (
+            queues.map((queue, index) => (
+              <QueueOverviewCard
+                key={queue.id}
+                queue={queue}
+                index={index}
+                onPress={() => openQueueOps(queue.id)}
+              />
+            ))
+          )}
           {selected ? (
             <Text
               style={[styles.detailsLink, { color: Colors.primary }]}
@@ -184,9 +313,34 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing['3xl'],
     gap: Spacing.lg,
   },
+  onboardingContent: {
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing['3xl'],
+    gap: Spacing.lg,
+  },
   padded: {
     paddingHorizontal: Spacing.md,
     gap: Spacing.sm,
+  },
+  onboardingCard: {
+    gap: Spacing.md,
+    alignItems: 'center',
+    paddingVertical: Spacing.xl,
+  },
+  onboardingIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: Radius.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  onboardingTitle: {
+    ...Typography.h2,
+    textAlign: 'center',
+  },
+  onboardingBody: {
+    ...Typography.body,
+    textAlign: 'center',
   },
   hero: {
     borderRadius: Radius['2xl'],
@@ -215,6 +369,11 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     color: 'rgba(255,255,255,0.8)',
   },
+  orgStatus: {
+    ...Typography.small,
+    color: 'rgba(255,255,255,0.75)',
+    marginTop: 2,
+  },
   greeting: {
     ...Typography.h3,
     color: Colors.textInverse,
@@ -222,6 +381,10 @@ const styles = StyleSheet.create({
   date: {
     ...Typography.small,
     color: 'rgba(255,255,255,0.85)',
+  },
+  manageButton: {
+    marginTop: Spacing.xs,
+    alignSelf: 'flex-start',
   },
   statsRow: {
     flexDirection: 'row',

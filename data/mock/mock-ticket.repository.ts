@@ -1,4 +1,4 @@
-import type { QueueTicket, Ticket } from '@/domain/models';
+import type { QueueJoinPreview, QueueTicket, Ticket } from '@/domain/models';
 import type {
   JoinQueueInput,
   TicketRepository,
@@ -11,7 +11,6 @@ import {
   getCancelledTickets,
   getCompletedTickets,
   getPrimaryActiveTicket,
-  getTicketById,
   MOCK_TICKETS,
 } from '@/mock/tickets';
 import { getHistoryTickets } from '@/mock/history';
@@ -21,14 +20,15 @@ import { noopSubscribe } from './noop-subscribe';
 function nextTicketNumber(prefix: string, existing: QueueTicket[]): string {
   const nums = existing
     .map((t) => t.ticketNumber)
-    .filter((n) => n.startsWith(`${prefix}-`))
-    .map((n) => Number.parseInt(n.split('-')[1] ?? '0', 10))
+    .filter((n) => n.startsWith(prefix))
+    .map((n) => Number.parseInt(n.replace(/^[A-Za-z]+/, ''), 10))
     .filter((n) => !Number.isNaN(n));
-  const next = (nums.length ? Math.max(...nums) : 100) + 1;
-  return `${prefix}-${String(next).padStart(3, '0')}`;
+  const next = (nums.length ? Math.max(...nums) : 0) + 1;
+  return `${prefix}${String(next).padStart(3, '0')}`;
 }
 
-function prefixForOrg(org: Organization): string {
+function prefixForOrg(org?: Organization): string {
+  if (!org) return 'A';
   const map: Record<string, string> = {
     hospitals: 'A',
     banks: 'B',
@@ -45,7 +45,19 @@ export class MockTicketRepository implements TicketRepository {
   private tickets: QueueTicket[] = MOCK_TICKETS.map((t) => ({ ...t }));
 
   async getById(id: string): Promise<QueueTicket | null> {
-    return this.tickets.find((t) => t.id === id) ?? getTicketById(id) ?? null;
+    return this.getTicketById(id);
+  }
+
+  async getTicketById(id: string): Promise<QueueTicket | null> {
+    return this.tickets.find((t) => t.id === id) ?? null;
+  }
+
+  async getMyTickets(): Promise<QueueTicket[]> {
+    return this.list();
+  }
+
+  async getActiveTicket(): Promise<QueueTicket | null> {
+    return this.getPrimaryActive();
   }
 
   async list(): Promise<QueueTicket[]> {
@@ -72,44 +84,57 @@ export class MockTicketRepository implements TicketRepository {
     return getPrimaryActiveTicket(tickets ?? this.tickets) ?? null;
   }
 
+  async getJoinPreview(serviceId: string): Promise<QueueJoinPreview> {
+    const related = this.tickets.filter(
+      (t) => t.serviceId === serviceId && t.status === 'waiting',
+    );
+    return {
+      queueId: related[0]?.queueId ?? null,
+      queueStatus: 'open',
+      currentServing: related[0]?.currentServing ?? '—',
+      waitingCount: related.length,
+      estimatedWaitMinutes: related.length * 10,
+      averageServiceTime: 10,
+      canJoin: true,
+    };
+  }
+
   async joinQueue(input: JoinQueueInput): Promise<QueueTicket> {
-    const { organization, department, service } = input;
+    const organization = input.organization;
+    const department = input.department;
+    const service = input.service;
+    const serviceId = input.serviceId ?? service?.id ?? '';
     const prefix = prefixForOrg(organization);
     const ticketNumber = nextTicketNumber(prefix, this.tickets);
-    const peopleAhead = service.peopleAhead;
-    const estimatedWaitMinutes = service.averageWaitMinutes;
-    const servingNum = Math.max(
-      1,
-      Number.parseInt(ticketNumber.split('-')[1] ?? '1', 10) - peopleAhead - 1,
-    );
-    const currentServing = `${prefix}-${String(servingNum).padStart(3, '0')}`;
+    const peopleAhead = service?.peopleAhead ?? 0;
+    const estimatedWaitMinutes = service?.averageWaitMinutes ?? peopleAhead * 10;
     const now = Date.now();
 
     const ticket: QueueTicket = {
       id: `ticket-${now}`,
       ticketNumber,
-      queueId: `queue-${service.id}`,
-      organizationId: organization.id,
-      locationName: organization.name,
-      organizationName: organization.name,
-      departmentId: department.id,
-      departmentName: department.name,
-      serviceId: service.id,
-      serviceName: service.name,
+      queueId: `queue-${serviceId}`,
+      organizationId: organization?.id ?? '',
+      locationName: organization?.name ?? '',
+      organizationName: organization?.name ?? '',
+      departmentId: department?.id ?? '',
+      departmentName: department?.name ?? '',
+      serviceId,
+      serviceName: service?.name ?? '',
       status: peopleAhead <= 1 ? 'almost' : 'waiting',
       position: peopleAhead + 1,
       peopleAhead,
       estimatedWaitMinutes,
-      currentServing,
-      counter: String(Math.floor(Math.random() * 6) + 1).padStart(2, '0'),
+      currentServing: `${prefix}001`,
       joinedAt: new Date(now).toISOString(),
       estimatedCompletionAt: new Date(
         now + estimatedWaitMinutes * 60_000,
       ).toISOString(),
       reminderEnabled: true,
-      logoIcon: organization.logoIcon,
+      logoIcon: organization?.logoIcon,
       queueEntryId: `qe-${now}`,
       qrCode: `MB-${ticketNumber}-${now}`,
+      queueStatus: 'open',
     };
 
     this.tickets = [ticket, ...this.tickets];
@@ -125,7 +150,11 @@ export class MockTicketRepository implements TicketRepository {
   }
 
   async cancel(id: string): Promise<QueueTicket> {
-    return this.update(id, {
+    return this.cancelQueueEntry(id);
+  }
+
+  async cancelQueueEntry(ticketId: string): Promise<QueueTicket> {
+    return this.update(ticketId, {
       status: 'cancelled',
       cancelledAt: new Date().toISOString(),
       peopleAhead: 0,
@@ -141,11 +170,21 @@ export class MockTicketRepository implements TicketRepository {
   async getQrTicket(ticketId: string): Promise<Ticket | null> {
     const ticket = await this.getById(ticketId);
     if (!ticket) return null;
+    const now = ticket.joinedAt;
     return {
       id: `qr-${ticket.id}`,
       queueEntryId: ticket.queueEntryId ?? ticket.id,
+      userId: '',
+      queueId: ticket.queueId,
+      organizationId: ticket.organizationId,
+      departmentId: ticket.departmentId,
+      serviceId: ticket.serviceId,
+      ticketNumber: ticket.ticketNumber,
+      status: ticket.status,
       qrCode: ticket.qrCode ?? `MB-${ticket.ticketNumber}`,
-      generatedAt: ticket.joinedAt,
+      createdAt: now,
+      updatedAt: now,
+      generatedAt: now,
     };
   }
 
@@ -153,12 +192,10 @@ export class MockTicketRepository implements TicketRepository {
     return noopSubscribe(callback);
   }
 
-  /** Sync seed for Zustand stores that hydrate once at boot. */
   getSeedTickets(): QueueTicket[] {
     return this.tickets.map((t) => ({ ...t }));
   }
 
-  /** Replace in-memory list (used when store is source of truth during session). */
   replaceAll(tickets: QueueTicket[]): void {
     this.tickets = tickets.map((t) => ({ ...t }));
   }

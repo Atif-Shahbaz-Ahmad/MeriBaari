@@ -125,7 +125,7 @@ export class AuthService {
   }
 
   async setRole(userId: string, role: UserRole): Promise<Profile> {
-    return this.profiles.setRole(userId, role);
+    return this.profileHelpers.setRole(userId, role);
   }
 
   async loadProfileForSession(

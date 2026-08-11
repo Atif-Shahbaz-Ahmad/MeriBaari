@@ -11,15 +11,20 @@ export default function BusinessLayout() {
   const isInitialized = useAuthStore((s) => s.isInitialized);
   const isRestoringSession = useAuthStore((s) => s.isRestoringSession);
   const isProfileLoading = useAuthStore((s) => s.isProfileLoading);
+  const profileLoadFailed = useAuthStore((s) => s.profileLoadFailed);
   const session = useAuthStore((s) => s.session);
   const role = useAuthStore((s) => s.role);
 
-  if (!isInitialized || isRestoringSession || (session && isProfileLoading && !role)) {
+  if (!isInitialized || isRestoringSession || (session && isProfileLoading && !role && !profileLoadFailed)) {
     return null;
   }
 
   if (!session) {
     return <Redirect href={getUnauthenticatedHref()} />;
+  }
+
+  if (profileLoadFailed) {
+    return <Redirect href={AuthHref.profileRecovery} />;
   }
 
   if (!role) {
@@ -36,6 +41,34 @@ export default function BusinessLayout() {
       <Stack.Screen name="queue/[queueId]" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="walk-in" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="activity" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen
+        name="organization/create"
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="organization/edit"
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="department/create"
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="department/[departmentId]/index"
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="department/[departmentId]/edit"
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="department/[departmentId]/service/create"
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="department/[departmentId]/service/[serviceId]/edit"
+        options={{ animation: 'slide_from_right' }}
+      />
     </Stack>
   );
 }

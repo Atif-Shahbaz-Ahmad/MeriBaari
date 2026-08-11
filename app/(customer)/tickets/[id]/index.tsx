@@ -14,41 +14,80 @@ import { ReminderToggle } from '@/components/tickets/ReminderToggle';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { FlowHeader } from '@/components/ui/FlowHeader';
+import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { dataAccess } from '@/data';
+import {
+  getQueueErrorMessage,
+} from '@/domain/errors/queue-error';
 import { pushOrganization } from '@/features/queue/navigation';
+import { useCancelQueue } from '@/features/queue/hooks/use-queue-mutations';
+import {
+  useTicket,
+  useTicketProgress,
+} from '@/features/queue/hooks/use-queue-queries';
+import { useTicketRealtime } from '@/features/queue/hooks/use-queue-realtime';
 import { AuthHref } from '@/features/auth/navigation';
 import { pushTicketProgress } from '@/features/tickets/navigation';
 import { getStatusMeta } from '@/features/tickets/status';
 import { useTheme } from '@/hooks/use-theme';
-import { dataAccess } from '@/data';
 import { useJoinQueueStore } from '@/store/join-queue-store';
-import { useTicketStore } from '@/store/ticket-store';
 import { formatClockTime, formatWaitTime } from '@/utils/formatting';
 
 export default function ActiveTicketScreen() {
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const ticket = useTicketStore((s) => s.tickets.find((t) => t.id === id));
-  const setReminder = useTicketStore((s) => s.setReminder);
-  const cancelTicket = useTicketStore((s) => s.cancelTicket);
+  const {
+    data: ticket,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useTicket(id);
+  const { data: progress } = useTicketProgress(id);
+  useTicketRealtime(id, ticket?.queueId);
+  const cancelQueue = useCancelQueue();
   const selectOrganization = useJoinQueueStore((s) => s.selectOrganization);
 
-  const progress = useMemo(
-    () => (id ? dataAccess.getQueueProgress(id) : undefined),
-    [id],
-  );
   const statusMeta = ticket ? getStatusMeta(ticket.status) : null;
 
   const ringProgress = useMemo(() => {
-    if (!ticket || !progress) return 0.15;
+    if (!ticket) return 0.15;
     if (ticket.status === 'serving' || ticket.status === 'completed') return 1;
+    if (!progress) {
+      const capacity = Math.max(ticket.position + ticket.peopleAhead, 1);
+      const served = capacity - ticket.peopleAhead;
+      return Math.min(0.95, Math.max(0.08, served / capacity));
+    }
     const capacity = Math.max(progress.capacity, ticket.position + ticket.peopleAhead);
     const served = capacity - ticket.peopleAhead;
     return Math.min(0.95, Math.max(0.08, served / capacity));
   }, [ticket, progress]);
+
+  if (isLoading) {
+    return (
+      <Screen>
+        <LoadingSkeleton count={3} variant="ticket" />
+      </Screen>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Screen>
+        <FlowHeader title="Ticket" onBack={() => router.back()} />
+        <ErrorState
+          title="Could not load ticket"
+          description={getQueueErrorMessage(error)}
+          onRetry={() => void refetch()}
+        />
+      </Screen>
+    );
+  }
 
   if (!ticket) {
     return (
@@ -86,18 +125,32 @@ export default function ActiveTicketScreen() {
         text: 'Cancel queue',
         style: 'destructive',
         onPress: () => {
-          cancelTicket(ticket.id);
+          void (async () => {
+            try {
+              await cancelQueue.mutateAsync(ticket.id);
+              Alert.alert('Queue cancelled', 'Your ticket has been cancelled.');
+            } catch (e) {
+              Alert.alert('Could not cancel', getQueueErrorMessage(e));
+            }
+          })();
         },
       },
     ]);
   };
+
+  const queueStatusLabel =
+    ticket.queueStatus === 'paused'
+      ? 'Paused'
+      : ticket.queueStatus === 'closed'
+        ? 'Closed'
+        : 'Open';
 
   return (
     <Screen padded={false} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInDown.duration(400)} style={styles.padded}>
           <FlowHeader
-            title="Active Ticket"
+            title="Ticket Details"
             subtitle={ticket.organizationName}
             onBack={() => router.back()}
           />
@@ -106,6 +159,30 @@ export default function ActiveTicketScreen() {
         <View style={styles.padded}>
           <ActiveTicketCard ticket={ticket} />
         </View>
+
+        <Animated.View entering={FadeInDown.delay(80).duration(400)} style={styles.padded}>
+          <Card style={styles.metaCard}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Details</Text>
+            <Text style={[styles.metaLine, { color: theme.textSecondary }]}>
+              Department · {ticket.departmentName}
+            </Text>
+            <Text style={[styles.metaLine, { color: theme.textSecondary }]}>
+              Service · {ticket.serviceName}
+            </Text>
+            <Text style={[styles.metaLine, { color: theme.textSecondary }]}>
+              Queue status · {queueStatusLabel}
+            </Text>
+            <Text style={[styles.metaLine, { color: theme.textSecondary }]}>
+              Joined · {formatClockTime(ticket.joinedAt)}
+            </Text>
+            <Text style={[styles.metaLine, { color: theme.textSecondary }]}>
+              People ahead · {ticket.peopleAhead}
+            </Text>
+            <Text style={[styles.metaLine, { color: theme.textSecondary }]}>
+              Est. wait · {formatWaitTime(ticket.estimatedWaitMinutes)}
+            </Text>
+          </Card>
+        </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.padded}>
           <Card style={styles.progressCard}>
@@ -185,7 +262,9 @@ export default function ActiveTicketScreen() {
           <View style={styles.padded}>
             <ReminderToggle
               enabled={ticket.reminderEnabled}
-              onValueChange={(v) => setReminder(ticket.id, v)}
+              onValueChange={() => {
+                // Reminder persistence ships with notifications later.
+              }}
             />
           </View>
         ) : null}
@@ -205,7 +284,13 @@ export default function ActiveTicketScreen() {
             leftIcon={<Building2 size={18} color={Colors.primary} />}
           />
           {dataAccess.isActiveStatus(ticket.status) ? (
-            <Button title="Cancel Queue" variant="danger" onPress={onCancel} />
+            <Button
+              title={cancelQueue.isPending ? 'Cancelling…' : 'Cancel Queue'}
+              variant="danger"
+              onPress={onCancel}
+              loading={cancelQueue.isPending}
+              disabled={cancelQueue.isPending}
+            />
           ) : null}
         </Animated.View>
       </ScrollView>
@@ -220,6 +305,12 @@ const styles = StyleSheet.create({
   },
   padded: {
     paddingHorizontal: Spacing.md,
+  },
+  metaCard: {
+    gap: Spacing.xs,
+  },
+  metaLine: {
+    ...Typography.body,
   },
   progressCard: {
     gap: Spacing.md,

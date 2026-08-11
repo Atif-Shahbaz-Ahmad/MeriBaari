@@ -32,7 +32,7 @@ export function ProgressCard({
           const isPast = index < sequence.indexOf(currentServing);
 
           return (
-            <View key={ticket} style={styles.step}>
+            <View key={`${ticket}-${index}`} style={styles.step}>
               <View
                 style={[
                   styles.dot,

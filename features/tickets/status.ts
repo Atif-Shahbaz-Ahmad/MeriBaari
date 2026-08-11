@@ -122,6 +122,34 @@ export const TICKET_STATUS_META: Record<QueueStatus, TicketStatusMeta> = {
 
   },
 
+  served: {
+
+    label: 'Served',
+
+    description: 'This queue visit is finished. Thanks for using MeriBaari.',
+
+    color: Colors.secondary600,
+
+    background: Colors.secondary50,
+
+    icon: 'check',
+
+  },
+
+  skipped: {
+
+    label: 'Skipped',
+
+    description: 'This ticket was skipped by the business.',
+
+    color: '#C2410C',
+
+    background: Colors.accent50,
+
+    icon: 'alert',
+
+  },
+
 };
 
 

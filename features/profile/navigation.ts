@@ -3,6 +3,7 @@ import { router, type Href } from 'expo-router';
 /** Profile / settings hrefs — cast until Expo typed routes regenerate. */
 export const ProfileHref = {
   settings: '/profile/settings' as Href,
+  notifications: '/profile/notifications' as Href,
   help: '/profile/help' as Href,
   about: '/profile/about' as Href,
   edit: '/profile/edit' as Href,
@@ -13,6 +14,10 @@ export const ProfileHref = {
 
 export function pushSettings() {
   router.push(ProfileHref.settings);
+}
+
+export function pushNotificationSettings() {
+  router.push(ProfileHref.notifications);
 }
 
 export function pushHelp() {

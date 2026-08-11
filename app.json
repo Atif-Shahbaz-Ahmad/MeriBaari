@@ -10,7 +10,12 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.meribaari.mobile"
+      "bundleIdentifier": "app.meribaari.mobile",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +26,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "app.meribaari.mobile"
+      "package": "app.meribaari.mobile",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
@@ -35,7 +41,9 @@
       [
         "expo-notifications",
         {
-          "color": "#2563EB"
+          "color": "#2563EB",
+          "defaultChannel": "meribaari-queue-alerts",
+          "sounds": []
         }
       ],
       [
@@ -56,9 +64,11 @@
       "reactCompiler": true
     },
     "extra": {
+      "router": {},
       "eas": {
-        "projectId": "meribaari-local"
+        "projectId": "9746a473-96d5-44ba-aef8-5e02c890b1f5"
       }
-    }
+    },
+    "owner": "atif_shahbaz_ahmad"
   }
 }

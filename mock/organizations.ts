@@ -6,7 +6,7 @@ export const MOCK_ORGANIZATIONS: Organization[] = [
     name: 'City Hospital',
     description:
       'A multi-specialty hospital offering OPD, diagnostics, emergency, and specialty clinics with digital queue management across departments.',
-    category: 'hospitals',
+    category: 'clinic',
     address: 'Jail Road, near Main Market',
     city: 'Lahore',
     workingHours: '8:00 AM – 10:00 PM',
@@ -40,7 +40,7 @@ export const MOCK_ORGANIZATIONS: Organization[] = [
     name: 'Shaukat Khanum Memorial Cancer Hospital',
     description:
       'Pakistan’s leading cancer care hospital providing oncology consultations, diagnostics, and patient support services.',
-    category: 'hospitals',
+    category: 'clinic',
     address: '7-A Block R-3, M.A. Johar Town',
     city: 'Lahore',
     workingHours: '8:00 AM – 8:00 PM',
@@ -66,7 +66,7 @@ export const MOCK_ORGANIZATIONS: Organization[] = [
     name: 'Punjab Institute of Cardiology',
     description:
       'Premier cardiac care institute offering OPD, diagnostics, and specialized heart treatment services.',
-    category: 'hospitals',
+    category: 'clinic',
     address: 'Jail Road',
     city: 'Lahore',
     workingHours: '8:00 AM – 4:00 PM',
@@ -92,7 +92,7 @@ export const MOCK_ORGANIZATIONS: Organization[] = [
     name: 'Meezan Bank — Gulberg Branch',
     description:
       'Islamic banking branch for account services, cash transactions, and remittances with smart queue tokens.',
-    category: 'banks',
+    category: 'other',
     address: 'Main Boulevard, Gulberg III',
     city: 'Lahore',
     workingHours: '9:00 AM – 5:00 PM',
@@ -118,7 +118,7 @@ export const MOCK_ORGANIZATIONS: Organization[] = [
     name: 'HBL — DHA Phase 5',
     description:
       'Habib Bank Limited branch offering general banking, card services, and loan inquiries.',
-    category: 'banks',
+    category: 'other',
     address: 'Y-Block, DHA Phase 5',
     city: 'Lahore',
     workingHours: '9:00 AM – 5:00 PM',
@@ -144,7 +144,7 @@ export const MOCK_ORGANIZATIONS: Organization[] = [
     name: 'NADRA Registration Center',
     description:
       'National Database & Registration Authority center for CNIC, B-Form, and family registration services.',
-    category: 'government',
+    category: 'other',
     address: 'Model Town Link Road',
     city: 'Lahore',
     workingHours: '9:00 AM – 4:00 PM',
@@ -170,7 +170,7 @@ export const MOCK_ORGANIZATIONS: Organization[] = [
     name: 'Regional Passport Office',
     description:
       'Directorate General of Immigration & Passports office for new, renewal, and collection services.',
-    category: 'government',
+    category: 'other',
     address: 'Canal Bank Road',
     city: 'Lahore',
     workingHours: '9:00 AM – 3:00 PM',
@@ -196,7 +196,7 @@ export const MOCK_ORGANIZATIONS: Organization[] = [
     name: 'Punjab Excise & Taxation',
     description:
       'Vehicle registration, ownership transfer, and related provincial excise services.',
-    category: 'government',
+    category: 'other',
     address: 'Thokar Niaz Baig',
     city: 'Lahore',
     workingHours: '9:00 AM – 4:00 PM',
@@ -222,7 +222,7 @@ export const MOCK_ORGANIZATIONS: Organization[] = [
     name: 'UCP Student Affairs',
     description:
       'University of Central Punjab student affairs desk for enrollment and academic records.',
-    category: 'universities',
+    category: 'other',
     address: 'Khayaiban-e-Jinnah, Johar Town',
     city: 'Lahore',
     workingHours: '9:00 AM – 5:00 PM',
@@ -248,7 +248,7 @@ export const MOCK_ORGANIZATIONS: Organization[] = [
     name: 'Driving License Center',
     description:
       'Punjab licensing authority center for learner permits, permanent licenses, and renewals.',
-    category: 'government',
+    category: 'other',
     address: 'Ravi Road',
     city: 'Lahore',
     workingHours: '8:30 AM – 3:30 PM',
@@ -274,7 +274,7 @@ export const MOCK_ORGANIZATIONS: Organization[] = [
     name: 'Chughtai Lab — Johar Town',
     description:
       'Diagnostic laboratory for walk-in sample collection and report pickup with short digital queues.',
-    category: 'clinics',
+    category: 'clinic',
     address: 'Near Emporium Mall, Johar Town',
     city: 'Lahore',
     workingHours: '7:00 AM – 11:00 PM',
@@ -300,7 +300,7 @@ export const MOCK_ORGANIZATIONS: Organization[] = [
     name: 'Bundu Khan — MM Alam',
     description:
       'Popular restaurant offering dine-in waitlist and takeaway tokens during peak hours.',
-    category: 'restaurants',
+    category: 'restaurant',
     address: 'MM Alam Road, Gulberg',
     city: 'Lahore',
     workingHours: '12:00 PM – 12:00 AM',

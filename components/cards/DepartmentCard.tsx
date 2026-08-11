@@ -23,7 +23,17 @@ import { Radius, Shadows, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
 import { formatWaitTime } from '@/utils/formatting';
-import type { AvailabilityStatus, Department } from '@/types';
+import type { AvailabilityStatus } from '@/types';
+import type { Department as DomainDepartment } from '@/domain/models';
+import type { Department as CatalogDepartment } from '@/types';
+
+type DepartmentCardModel = DomainDepartment | CatalogDepartment;
+
+interface DepartmentCardProps {
+  department: DepartmentCardModel;
+  selected?: boolean;
+  onPress?: () => void;
+}
 
 const DEPT_ICONS = {
   stethoscope: Stethoscope,
@@ -37,12 +47,6 @@ const DEPT_ICONS = {
   file: FileText,
   car: Car,
 } as const;
-
-interface DepartmentCardProps {
-  department: Department;
-  selected?: boolean;
-  onPress?: () => void;
-}
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 

@@ -6,15 +6,23 @@ import { JoinServiceCard } from '@/components/cards/JoinServiceCard';
 import { PrimaryButton } from '@/components/buttons/PrimaryButton';
 import { Screen } from '@/components/layout/Screen';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { FlowHeader } from '@/components/ui/FlowHeader';
+import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { Spacing } from '@/constants/spacing';
+import { getOrganizationErrorMessage } from '@/domain/errors/organization-error';
+import { getStructureErrorMessage } from '@/domain/errors/structure-error';
+import { useOrganization } from '@/features/organization/hooks/use-organizations';
+import {
+  useDepartment,
+  useServices,
+} from '@/features/structure/hooks/use-structure-queries';
 import { useTheme } from '@/hooks/use-theme';
 import {
   JoinQueueHref,
   pushConfirm,
   replaceJoinQueueList,
 } from '@/features/queue/navigation';
-import { dataAccess } from '@/data';
 import { useJoinQueueStore } from '@/store/join-queue-store';
 
 export default function ServiceSelectionScreen() {
@@ -24,17 +32,71 @@ export default function ServiceSelectionScreen() {
   const serviceId = useJoinQueueStore((s) => s.serviceId);
   const selectService = useJoinQueueStore((s) => s.selectService);
 
-  const organization = orgId ? dataAccess.getOrganizationById(orgId) : undefined;
-  const department = departmentId ? dataAccess.getDepartmentById(departmentId) : undefined;
-  const services = departmentId ? dataAccess.getServicesByDepartment(departmentId) : [];
+  const {
+    data: organization,
+    isLoading: orgLoading,
+    isError: orgError,
+    error: orgErr,
+    refetch: refetchOrg,
+  } = useOrganization(orgId);
+  const {
+    data: department,
+    isLoading: deptLoading,
+    isError: deptError,
+    error: deptErr,
+    refetch: refetchDept,
+  } = useDepartment(departmentId ?? undefined);
+  const {
+    data: services = [],
+    isLoading: servicesLoading,
+    isError: servicesError,
+    error: servicesErr,
+    refetch: refetchServices,
+  } = useServices(departmentId ?? undefined, { activeOnly: true });
 
-  if (!organization || !department) {
+  if (orgLoading || deptLoading || servicesLoading) {
+    return (
+      <Screen>
+        <FlowHeader title="Select Service" onBack={() => router.back()} />
+        <LoadingSkeleton count={3} />
+      </Screen>
+    );
+  }
+
+  if (orgError) {
+    return (
+      <Screen>
+        <FlowHeader title="Select Service" onBack={() => router.back()} />
+        <ErrorState
+          description={getOrganizationErrorMessage(orgErr)}
+          onRetry={() => void refetchOrg()}
+        />
+      </Screen>
+    );
+  }
+
+  if (deptError || servicesError) {
+    return (
+      <Screen>
+        <FlowHeader title="Select Service" onBack={() => router.back()} />
+        <ErrorState
+          description={getStructureErrorMessage(deptErr ?? servicesErr)}
+          onRetry={() => {
+            void refetchDept();
+            void refetchServices();
+          }}
+        />
+      </Screen>
+    );
+  }
+
+  if (!organization || !department || !department.isActive) {
     return (
       <Screen>
         <FlowHeader title="Select Service" onBack={() => router.back()} />
         <EmptyState
           title="Select a department first"
-          description="Go back and choose a department to see available services."
+          description="Go back and choose an active department to see available services."
           actionLabel="Choose department"
           onActionPress={() => {
             if (orgId) router.replace(JoinQueueHref.departments(orgId));
@@ -45,9 +107,14 @@ export default function ServiceSelectionScreen() {
     );
   }
 
+  const activeServices = services.filter((service) => service.isActive);
+
   return (
     <Screen padded={false} edges={['top', 'left', 'right']}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         <Animated.View entering={FadeInDown.duration(400)} style={styles.padded}>
           <FlowHeader
             title="Select Service"
@@ -56,25 +123,39 @@ export default function ServiceSelectionScreen() {
           />
         </Animated.View>
 
-        <View style={styles.padded}>
-          <View style={styles.stack}>
-            {services.map((service, index) => (
-              <Animated.View
-                key={service.id}
-                entering={FadeInDown.delay(60 + index * 40).duration(400)}
-              >
-                <JoinServiceCard
-                  service={service}
-                  selected={serviceId === service.id}
-                  onPress={() => selectService(service.id)}
-                />
-              </Animated.View>
-            ))}
+        {activeServices.length === 0 ? (
+          <EmptyState
+            title="No services available in this department"
+            description="This department has not published any active services yet."
+            actionLabel="Back"
+            onActionPress={() => router.back()}
+          />
+        ) : (
+          <View style={styles.padded}>
+            <View style={styles.stack}>
+              {activeServices.map((service, index) => (
+                <Animated.View
+                  key={service.id}
+                  entering={FadeInDown.delay(60 + index * 40).duration(400)}
+                >
+                  <JoinServiceCard
+                    service={service}
+                    selected={serviceId === service.id}
+                    onPress={() => selectService(service.id)}
+                  />
+                </Animated.View>
+              ))}
+            </View>
           </View>
-        </View>
+        )}
       </ScrollView>
 
-      <View style={[styles.footer, { backgroundColor: theme.background, borderTopColor: theme.border }]}>
+      <View
+        style={[
+          styles.footer,
+          { backgroundColor: theme.background, borderTopColor: theme.border },
+        ]}
+      >
         <PrimaryButton
           title="Continue"
           disabled={!serviceId}

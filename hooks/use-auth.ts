@@ -7,11 +7,12 @@ import { usePreferencesStore } from '@/store/preferences-store';
 import { useThemeStore } from '@/store/theme-store';
 
 export function useAppBootstrap() {
-  const initializeAuth = useAuthStore((s) => s.initialize);
+  const initializeAuth = useAuthStore((s) => s.initializeAuth);
   const handleAuthUrl = useAuthStore((s) => s.handleAuthUrl);
   const isAuthInitialized = useAuthStore((s) => s.isInitialized);
   const isRestoringSession = useAuthStore((s) => s.isRestoringSession);
   const isProfileLoading = useAuthStore((s) => s.isProfileLoading);
+  const profileLoadFailed = useAuthStore((s) => s.profileLoadFailed);
   const session = useAuthStore((s) => s.session);
   const role = useAuthStore((s) => s.role);
 
@@ -34,7 +35,6 @@ export function useAppBootstrap() {
     ]);
   }, [initializeAuth, hydrateOnboarding, hydrateTheme, hydratePreferences]);
 
-  // Magic-link / email-confirm deep links → establish Supabase session in-app
   useEffect(() => {
     const handleUrl = (url: string | null) => {
       if (!url) return;
@@ -47,11 +47,10 @@ export function useAppBootstrap() {
     return () => sub.remove();
   }, [handleAuthUrl]);
 
-  // Hold splash until session + profile role path is settled (avoids login↔home flash).
   const isReady =
     isAuthInitialized &&
     !isRestoringSession &&
-    !(session && isProfileLoading) &&
+    !(session && isProfileLoading && !profileLoadFailed) &&
     isOnboardingHydrated &&
     isThemeHydrated &&
     isPreferencesHydrated;
@@ -61,6 +60,7 @@ export function useAppBootstrap() {
     isAuthenticated: Boolean(session),
     hasCompletedOnboarding,
     role,
+    profileLoadFailed,
   };
 }
 
@@ -72,6 +72,7 @@ export function useAuth() {
   const isLoading = useAuthStore((s) => s.isLoading);
   const isProfileLoading = useAuthStore((s) => s.isProfileLoading);
   const isRestoringSession = useAuthStore((s) => s.isRestoringSession);
+  const profileLoadFailed = useAuthStore((s) => s.profileLoadFailed);
   const error = useAuthStore((s) => s.error);
   const needsEmailVerification = useAuthStore((s) => s.needsEmailVerification);
   const pendingVerificationEmail = useAuthStore((s) => s.pendingVerificationEmail);
@@ -87,6 +88,7 @@ export function useAuth() {
   const clearPendingVerification = useAuthStore((s) => s.clearPendingVerification);
   const refreshSession = useAuthStore((s) => s.refreshSession);
   const refreshProfile = useAuthStore((s) => s.refreshProfile);
+  const updateProfile = useAuthStore((s) => s.updateProfile);
   const signInWithDemo = useAuthStore((s) => s.signInWithDemo);
   const setRole = useAuthStore((s) => s.setRole);
   const switchRole = useAuthStore((s) => s.switchRole);
@@ -102,6 +104,7 @@ export function useAuth() {
     isLoading,
     isProfileLoading,
     isRestoringSession,
+    profileLoadFailed,
     error,
     needsEmailVerification,
     pendingVerificationEmail,
@@ -118,6 +121,7 @@ export function useAuth() {
     clearPendingVerification,
     refreshSession,
     refreshProfile,
+    updateProfile,
     signInWithDemo,
     setRole,
     switchRole,

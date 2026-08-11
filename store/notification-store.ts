@@ -1,45 +1,16 @@
+/**
+ * Lightweight UI helpers only — notification server state lives in React Query.
+ * Kept for backward compatibility with any remaining callers.
+ */
 import { create } from 'zustand';
 
-import { getContainer } from '@/data';
-import type { AppNotification, NotificationCategory } from '@/types';
-
-interface NotificationState {
-  notifications: AppNotification[];
-  markAsRead: (id: string) => void;
-  markAllAsRead: () => void;
-  deleteNotification: (id: string) => void;
-  clearAll: () => void;
-  unreadCount: () => number;
-  byCategory: (category: NotificationCategory | 'all') => AppNotification[];
+interface NotificationUiState {
+  /** Optional last-seen toast id for future in-app banners. */
+  lastIncomingId: string | null;
+  setLastIncomingId: (id: string | null) => void;
 }
 
-export const useNotificationStore = create<NotificationState>((set, get) => ({
-  notifications: getContainer().mockNotificationRepository.getSeedNotifications(),
-
-  markAsRead: (id) =>
-    set((state) => ({
-      notifications: state.notifications.map((n) =>
-        n.id === id ? { ...n, read: true } : n,
-      ),
-    })),
-
-  markAllAsRead: () =>
-    set((state) => ({
-      notifications: state.notifications.map((n) => ({ ...n, read: true })),
-    })),
-
-  deleteNotification: (id) =>
-    set((state) => ({
-      notifications: state.notifications.filter((n) => n.id !== id),
-    })),
-
-  clearAll: () => set({ notifications: [] }),
-
-  unreadCount: () => get().notifications.filter((n) => !n.read).length,
-
-  byCategory: (category) => {
-    const list = get().notifications;
-    if (category === 'all') return list;
-    return list.filter((n) => n.category === category);
-  },
+export const useNotificationStore = create<NotificationUiState>((set) => ({
+  lastIncomingId: null,
+  setLastIncomingId: (id) => set({ lastIncomingId: id }),
 }));

@@ -18,13 +18,15 @@ import { pushJoinQueueList } from '@/features/queue/navigation';
 import { pushTicketDetail } from '@/features/tickets/navigation';
 import { useTheme } from '@/hooks/use-theme';
 import { dataAccess } from '@/data';
-import { useTicketStore } from '@/store/ticket-store';
+import { useMyTickets } from '@/features/queue/hooks/use-queue-queries';
+import { useMyTicketsRealtime } from '@/features/queue/hooks/use-queue-realtime';
 
 type HistoryFilter = 'all' | 'completed' | 'cancelled' | 'missed';
 
 export default function TicketHistoryScreen() {
   const theme = useTheme();
-  const tickets = useTicketStore((s) => s.tickets);
+  const { data: tickets = [] } = useMyTickets();
+  useMyTicketsRealtime();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<HistoryFilter>('all');
 

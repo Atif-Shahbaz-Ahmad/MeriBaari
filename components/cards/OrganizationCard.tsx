@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -17,12 +17,14 @@ import {
   Clock3,
 } from 'lucide-react-native';
 
+import { getOrganizationCategoryLabel } from '@/constants/organization-categories';
 import { Colors } from '@/constants/colors';
 import { Radius, Shadows, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
 import { formatWaitTime } from '@/utils/formatting';
-import type { Organization } from '@/types';
+import type { Organization as DomainOrganization } from '@/domain/models';
+import type { Organization as CatalogOrganization } from '@/types';
 
 const LOGO_ICONS = {
   hospital: Hospital,
@@ -35,8 +37,10 @@ const LOGO_ICONS = {
   car: Car,
 } as const;
 
+type OrganizationCardModel = DomainOrganization | CatalogOrganization;
+
 interface OrganizationCardProps {
-  organization: Organization;
+  organization: OrganizationCardModel;
   onPress?: () => void;
   compact?: boolean;
 }
@@ -51,10 +55,27 @@ export function OrganizationCard({
   const theme = useTheme();
   const scale = useSharedValue(1);
   const Icon = LOGO_ICONS[organization.logoIcon] ?? Building2;
+  const logoUrl =
+    'logoUrl' in organization ? organization.logoUrl : undefined;
+  const categoryLabel = getOrganizationCategoryLabel(organization.category);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
+
+  const Logo = (
+    <View style={styles.logo}>
+      {logoUrl ? (
+        <Image
+          source={{ uri: logoUrl }}
+          style={styles.logoImage}
+          accessibilityIgnoresInvertColors
+        />
+      ) : (
+        <Icon size={compact ? 22 : 24} color={Colors.primary} strokeWidth={2} />
+      )}
+    </View>
+  );
 
   if (compact) {
     return (
@@ -73,19 +94,19 @@ export function OrganizationCard({
           { backgroundColor: theme.card, borderColor: theme.border },
         ]}
       >
-        <View style={styles.logo}>
-          <Icon size={22} color={Colors.primary} strokeWidth={2} />
-        </View>
+        {Logo}
         <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
           {organization.name}
         </Text>
         <Text style={[styles.meta, { color: theme.textMuted }]} numberOfLines={1}>
-          {formatCategory(organization.category)}
+          {categoryLabel}
         </Text>
         <View style={styles.compactMeta}>
           <Clock3 size={12} color={Colors.accent} />
           <Text style={[styles.meta, { color: theme.textSecondary }]}>
-            ~{formatWaitTime(organization.averageWaitMinutes)}
+            {organization.averageWaitMinutes > 0
+              ? `~${formatWaitTime(organization.averageWaitMinutes)}`
+              : '—'}
           </Text>
         </View>
       </AnimatedPressable>
@@ -108,35 +129,44 @@ export function OrganizationCard({
         { backgroundColor: theme.card, borderColor: theme.border },
       ]}
     >
-      <View style={styles.logo}>
-        <Icon size={24} color={Colors.primary} strokeWidth={2} />
-      </View>
+      {Logo}
 
       <View style={styles.body}>
         <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
           {organization.name}
         </Text>
         <Text style={[styles.meta, { color: theme.textMuted }]}>
-          {formatCategory(organization.category)} · {organization.city}
+          {categoryLabel}
+          {organization.city ? ` · ${organization.city}` : ''}
         </Text>
 
         <View style={styles.stats}>
           <StatPill
             icon={<Clock3 size={12} color={Colors.accent} />}
-            label={`~${formatWaitTime(organization.averageWaitMinutes)}`}
+            label={
+              organization.averageWaitMinutes > 0
+                ? `~${formatWaitTime(organization.averageWaitMinutes)}`
+                : 'Wait TBA'
+            }
           />
-          <StatPill
-            icon={<MapPin size={12} color={Colors.primary} />}
-            label={`${organization.distanceKm.toFixed(1)} km`}
-          />
-          <StatPill
-            icon={<Star size={12} color={Colors.secondary} />}
-            label={organization.rating.toFixed(1)}
-          />
+          {organization.distanceKm > 0 ? (
+            <StatPill
+              icon={<MapPin size={12} color={Colors.primary} />}
+              label={`${organization.distanceKm.toFixed(1)} km`}
+            />
+          ) : null}
+          {organization.rating > 0 ? (
+            <StatPill
+              icon={<Star size={12} color={Colors.secondary} />}
+              label={organization.rating.toFixed(1)}
+            />
+          ) : null}
         </View>
 
         <Text style={[styles.queues, { color: theme.textSecondary }]}>
-          {organization.activeQueues} active queue{organization.activeQueues === 1 ? '' : 's'}
+          {organization.activeQueues > 0
+            ? `${organization.activeQueues} active queue${organization.activeQueues === 1 ? '' : 's'}`
+            : 'Queues coming soon'}
         </Text>
       </View>
     </AnimatedPressable>
@@ -151,10 +181,6 @@ function StatPill({ icon, label }: { icon: React.ReactNode; label: string }) {
       <Text style={[styles.pillText, { color: theme.textSecondary }]}>{label}</Text>
     </View>
   );
-}
-
-function formatCategory(category: Organization['category']) {
-  return category.charAt(0).toUpperCase() + category.slice(1);
 }
 
 const styles = StyleSheet.create({
@@ -179,6 +205,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary50,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  logoImage: {
+    width: 52,
+    height: 52,
   },
   body: {
     flex: 1,

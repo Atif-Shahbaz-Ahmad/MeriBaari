@@ -1,25 +1,36 @@
 export type NotificationCategory = 'queue' | 'reminders' | 'system' | 'promotions';
 
 export type NotificationType =
-  | 'turn_soon'
-  | 'turn_next'
-  | 'queue_delayed'
-  | 'queue_completed'
-  | 'counter_changed'
-  | 'queue_cancelled'
-  | 'org_nearby'
-  | 'joined'
-  | 'reminder'
-  | 'promo';
+  | 'QUEUE_JOINED'
+  | 'TICKET_CALLED'
+  | 'TICKET_SERVING'
+  | 'TICKET_SERVED'
+  | 'TICKET_SKIPPED'
+  | 'QUEUE_PAUSED'
+  | 'QUEUE_RESUMED'
+  | 'QUEUE_CLOSED'
+  | 'QUEUE_TURN_APPROACHING'
+  | 'QUEUE_CANCELLED'
+  | 'SYSTEM';
 
+/** UI-facing notification — mirrors domain AppNotification. */
 export interface AppNotification {
   id: string;
+  userId: string;
   title: string;
+  message: string;
+  /** Alias of message for NotificationCard. */
   description: string;
   type: NotificationType;
   category: NotificationCategory;
   createdAt: string;
   read: boolean;
+  isRead: boolean;
+  ticketId: string | null;
+  queueId: string | null;
+  organizationId: string | null;
+  readAt: string | null;
+  eventKey?: string | null;
 }
 
 export type AppLanguage = 'en' | 'ur';

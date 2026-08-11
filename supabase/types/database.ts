@@ -18,26 +18,35 @@ export type OrganizationMemberRole = 'owner' | 'manager' | 'staff' | 'viewer';
 export type OrganizationStatus = 'active' | 'inactive' | 'suspended';
 export type DepartmentStatus = 'active' | 'inactive' | 'paused';
 export type ServiceStatus = 'active' | 'inactive' | 'paused';
-export type QueueStatus = 'active' | 'paused' | 'closed';
+export type QueueStatus = 'active' | 'open' | 'paused' | 'closed';
 export type QueueEntryStatus =
   | 'waiting'
   | 'called'
   | 'serving'
+  | 'served'
   | 'completed'
   | 'cancelled'
   | 'skipped'
   | 'missed';
+export type TicketStatusDb =
+  | 'waiting'
+  | 'called'
+  | 'serving'
+  | 'served'
+  | 'skipped'
+  | 'cancelled';
 export type NotificationTypeDb =
-  | 'turn_soon'
-  | 'turn_next'
-  | 'queue_delayed'
-  | 'queue_completed'
-  | 'counter_changed'
-  | 'queue_cancelled'
-  | 'org_nearby'
-  | 'joined'
-  | 'reminder'
-  | 'promo';
+  | 'QUEUE_JOINED'
+  | 'TICKET_CALLED'
+  | 'TICKET_SERVING'
+  | 'TICKET_SERVED'
+  | 'TICKET_SKIPPED'
+  | 'QUEUE_PAUSED'
+  | 'QUEUE_RESUMED'
+  | 'QUEUE_CLOSED'
+  | 'QUEUE_TURN_APPROACHING'
+  | 'QUEUE_CANCELLED'
+  | 'SYSTEM';
 
 export interface Database {
   public: {
@@ -86,34 +95,54 @@ export interface Database {
       organizations: {
         Row: {
           id: string;
+          owner_id: string | null;
           name: string;
-          logo: string | null;
+          logo_url: string | null;
           description: string;
           category: string;
           address: string;
+          city: string;
           phone: string | null;
           email: string | null;
           working_hours: string;
+          latitude: number | null;
+          longitude: number | null;
+          average_wait_time: number;
+          is_active: boolean;
           status: OrganizationStatus;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
+          owner_id: string;
           name: string;
-          logo?: string | null;
+          logo_url?: string | null;
           description?: string;
           category: string;
           address?: string;
+          city?: string;
           phone?: string | null;
           email?: string | null;
           working_hours?: string;
+          latitude?: number | null;
+          longitude?: number | null;
+          average_wait_time?: number;
+          is_active?: boolean;
           status?: OrganizationStatus;
           created_at?: string;
           updated_at?: string;
         };
         Update: Partial<Database['public']['Tables']['organizations']['Insert']>;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'organizations_owner_id_fkey';
+            columns: ['owner_id'];
+            isOneToOne: true;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       branches: {
         Row: {
@@ -182,7 +211,11 @@ export interface Database {
           organization_id: string;
           branch_id: string | null;
           name: string;
+          description: string;
+          icon: string;
           estimated_service_time: number;
+          is_active: boolean;
+          display_order: number;
           status: DepartmentStatus;
           created_at: string;
           updated_at: string;
@@ -192,7 +225,11 @@ export interface Database {
           organization_id: string;
           branch_id?: string | null;
           name: string;
+          description?: string;
+          icon?: string;
           estimated_service_time?: number;
+          is_active?: boolean;
+          display_order?: number;
           status?: DepartmentStatus;
           created_at?: string;
           updated_at?: string;
@@ -222,6 +259,9 @@ export interface Database {
           name: string;
           description: string;
           estimated_duration: number;
+          price: number | null;
+          is_active: boolean;
+          display_order: number;
           status: ServiceStatus;
           created_at: string;
           updated_at: string;
@@ -232,6 +272,9 @@ export interface Database {
           name: string;
           description?: string;
           estimated_duration?: number;
+          price?: number | null;
+          is_active?: boolean;
+          display_order?: number;
           status?: ServiceStatus;
           created_at?: string;
           updated_at?: string;
@@ -250,29 +293,59 @@ export interface Database {
       queues: {
         Row: {
           id: string;
+          organization_id: string;
           department_id: string;
+          service_id: string | null;
           current_serving_number: string;
+          current_number: string;
+          next_number: number;
           status: QueueStatus;
           average_waiting_time: number;
+          average_service_time: number;
+          total_waiting: number;
+          prefix: string;
+          ticket_seq: number;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
+          organization_id: string;
           department_id: string;
+          service_id?: string | null;
           current_serving_number?: string;
+          current_number?: string;
+          next_number?: number;
           status?: QueueStatus;
           average_waiting_time?: number;
+          average_service_time?: number;
+          total_waiting?: number;
+          prefix?: string;
+          ticket_seq?: number;
           created_at?: string;
           updated_at?: string;
         };
         Update: Partial<Database['public']['Tables']['queues']['Insert']>;
         Relationships: [
           {
+            foreignKeyName: 'queues_organization_id_fkey';
+            columns: ['organization_id'];
+            isOneToOne: false;
+            referencedRelation: 'organizations';
+            referencedColumns: ['id'];
+          },
+          {
             foreignKeyName: 'queues_department_id_fkey';
             columns: ['department_id'];
             isOneToOne: false;
             referencedRelation: 'departments';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'queues_service_id_fkey';
+            columns: ['service_id'];
+            isOneToOne: false;
+            referencedRelation: 'services';
             referencedColumns: ['id'];
           },
         ];
@@ -289,7 +362,11 @@ export interface Database {
           joined_at: string;
           called_at: string | null;
           completed_at: string | null;
+          served_at: string | null;
           cancelled_at: string | null;
+          estimated_wait_minutes: number;
+          created_at: string;
+          updated_at: string;
         };
         Insert: {
           id?: string;
@@ -302,7 +379,11 @@ export interface Database {
           joined_at?: string;
           called_at?: string | null;
           completed_at?: string | null;
+          served_at?: string | null;
           cancelled_at?: string | null;
+          estimated_wait_minutes?: number;
+          created_at?: string;
+          updated_at?: string;
         };
         Update: Partial<Database['public']['Tables']['queue_entries']['Insert']>;
         Relationships: [
@@ -333,14 +414,32 @@ export interface Database {
         Row: {
           id: string;
           queue_entry_id: string;
+          user_id: string | null;
+          queue_id: string | null;
+          organization_id: string | null;
+          department_id: string | null;
+          service_id: string | null;
+          ticket_number: string | null;
+          status: TicketStatusDb;
           qr_code: string;
           generated_at: string;
+          created_at: string;
+          updated_at: string;
         };
         Insert: {
           id?: string;
           queue_entry_id: string;
+          user_id?: string | null;
+          queue_id?: string | null;
+          organization_id?: string | null;
+          department_id?: string | null;
+          service_id?: string | null;
+          ticket_number?: string | null;
+          status?: TicketStatusDb;
           qr_code: string;
           generated_at?: string;
+          created_at?: string;
+          updated_at?: string;
         };
         Update: Partial<Database['public']['Tables']['tickets']['Insert']>;
         Relationships: [
@@ -349,6 +448,20 @@ export interface Database {
             columns: ['queue_entry_id'];
             isOneToOne: true;
             referencedRelation: 'queue_entries';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tickets_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tickets_queue_id_fkey';
+            columns: ['queue_id'];
+            isOneToOne: false;
+            referencedRelation: 'queues';
             referencedColumns: ['id'];
           },
         ];
@@ -362,6 +475,11 @@ export interface Database {
           type: NotificationTypeDb;
           is_read: boolean;
           created_at: string;
+          ticket_id: string | null;
+          queue_id: string | null;
+          organization_id: string | null;
+          read_at: string | null;
+          event_key: string | null;
         };
         Insert: {
           id?: string;
@@ -371,11 +489,103 @@ export interface Database {
           type: NotificationTypeDb;
           is_read?: boolean;
           created_at?: string;
+          ticket_id?: string | null;
+          queue_id?: string | null;
+          organization_id?: string | null;
+          read_at?: string | null;
+          event_key?: string | null;
         };
         Update: Partial<Database['public']['Tables']['notifications']['Insert']>;
         Relationships: [
           {
             foreignKeyName: 'notifications_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'notifications_ticket_id_fkey';
+            columns: ['ticket_id'];
+            isOneToOne: false;
+            referencedRelation: 'tickets';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'notifications_queue_id_fkey';
+            columns: ['queue_id'];
+            isOneToOne: false;
+            referencedRelation: 'queues';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'notifications_organization_id_fkey';
+            columns: ['organization_id'];
+            isOneToOne: false;
+            referencedRelation: 'organizations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      notification_preferences: {
+        Row: {
+          user_id: string;
+          in_app: boolean;
+          push: boolean;
+          email: boolean;
+          whatsapp: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          in_app?: boolean;
+          push?: boolean;
+          email?: boolean;
+          whatsapp?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<
+          Database['public']['Tables']['notification_preferences']['Insert']
+        >;
+        Relationships: [
+          {
+            foreignKeyName: 'notification_preferences_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: true;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      push_tokens: {
+        Row: {
+          id: string;
+          user_id: string;
+          token: string;
+          platform: 'android' | 'ios' | 'web';
+          device_name: string | null;
+          is_active: boolean;
+          last_used_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          token: string;
+          platform: 'android' | 'ios' | 'web';
+          device_name?: string | null;
+          is_active?: boolean;
+          last_used_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['push_tokens']['Insert']>;
+        Relationships: [
+          {
+            foreignKeyName: 'push_tokens_user_id_fkey';
             columns: ['user_id'];
             isOneToOne: false;
             referencedRelation: 'profiles';
@@ -410,6 +620,10 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      is_org_owner: {
+        Args: { org_id: string };
+        Returns: boolean;
+      };
       is_org_member: {
         Args: { org_id: string };
         Returns: boolean;
@@ -422,6 +636,66 @@ export interface Database {
         Args: { org_id: string };
         Returns: boolean;
       };
+      get_queue_join_preview: {
+        Args: { p_service_id: string };
+        Returns: Json;
+      };
+      join_queue: {
+        Args: { p_service_id: string };
+        Returns: Json;
+      };
+      cancel_my_ticket: {
+        Args: { p_ticket_id: string };
+        Returns: Json;
+      };
+      call_next_customer: {
+        Args: { p_queue_id: string };
+        Returns: Json;
+      };
+      start_serving_customer: {
+        Args: { p_entry_id: string };
+        Returns: Json;
+      };
+      serve_customer: {
+        Args: { p_entry_id: string };
+        Returns: Json;
+      };
+      skip_customer: {
+        Args: { p_entry_id: string };
+        Returns: Json;
+      };
+      set_queue_status: {
+        Args: { p_queue_id: string; p_status: string };
+        Returns: Json;
+      };
+      build_queue_ticket_payload: {
+        Args: { p_ticket_id: string };
+        Returns: Json;
+      };
+      register_push_token: {
+        Args: {
+          p_token: string;
+          p_platform: string;
+          p_device_name?: string | null;
+        };
+        Returns: string;
+      };
+      deactivate_push_token: {
+        Args: { p_token: string };
+        Returns: undefined;
+      };
+      deactivate_push_tokens_by_values: {
+        Args: { p_tokens: string[] };
+        Returns: number;
+      };
+      ensure_notification_preferences: {
+        Args: { p_user_id: string };
+        Returns: Database['public']['Tables']['notification_preferences']['Row'];
+      };
+      set_notification_preference_push: {
+        Args: { p_enabled: boolean };
+        Returns: Database['public']['Tables']['notification_preferences']['Row'];
+      };
     };
     Enums: {
       user_role: UserRole;
@@ -431,6 +705,7 @@ export interface Database {
       service_status: ServiceStatus;
       queue_status: QueueStatus;
       queue_entry_status: QueueEntryStatus;
+      ticket_status: TicketStatusDb;
       notification_type: NotificationTypeDb;
     };
     CompositeTypes: Record<string, never>;
@@ -448,5 +723,8 @@ export type QueueRow = Database['public']['Tables']['queues']['Row'];
 export type QueueEntryRow = Database['public']['Tables']['queue_entries']['Row'];
 export type TicketRow = Database['public']['Tables']['tickets']['Row'];
 export type NotificationRow = Database['public']['Tables']['notifications']['Row'];
+export type PushTokenRow = Database['public']['Tables']['push_tokens']['Row'];
+export type NotificationPreferencesRow =
+  Database['public']['Tables']['notification_preferences']['Row'];
 export type BusinessSettingsRow =
   Database['public']['Tables']['business_settings']['Row'];

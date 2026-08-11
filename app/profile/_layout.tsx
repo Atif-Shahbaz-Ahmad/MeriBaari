@@ -10,6 +10,7 @@ export default function ProfileStackLayout() {
       }}
     >
       <Stack.Screen name="settings" />
+      <Stack.Screen name="notifications" />
       <Stack.Screen name="help" />
       <Stack.Screen name="about" />
       <Stack.Screen name="edit" />

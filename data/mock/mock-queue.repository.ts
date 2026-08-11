@@ -1,5 +1,9 @@
 import type { Queue } from '@/domain/models';
-import type { QueueRepository, QueueUpdateInput } from '@/domain/repositories';
+import type {
+  QueueCreateInput,
+  QueueRepository,
+  QueueUpdateInput,
+} from '@/domain/repositories';
 import type { BusinessQueue, BusinessQueueDetailsStats } from '@/types/business';
 import type { QueueProgressDetails } from '@/types/queue';
 import {
@@ -14,17 +18,24 @@ import {
 import { noopSubscribe } from './noop-subscribe';
 
 function businessQueueToDomain(q: BusinessQueue): Queue {
+  const nextNum = Number.parseInt(q.nextNumber.split('-').pop() ?? '1', 10) || 1;
   return {
     id: q.id,
+    organizationId: '',
     departmentId: q.departmentId,
-    currentServingNumber: q.currentServing,
-    status: q.status,
-    averageWaitingTime: q.averageWaitMinutes,
     serviceId: q.serviceId,
-    name: q.name,
-    nextNumber: q.nextNumber,
-    waitingCount: q.waitingCount,
+    status: q.status === 'active' ? 'open' : q.status,
+    currentNumber: q.currentServing,
+    currentServingNumber: q.currentServing,
+    nextNumber: nextNum,
+    averageServiceTime: q.averageWaitMinutes,
+    averageWaitingTime: q.averageWaitMinutes,
+    totalWaiting: q.waitingCount,
     prefix: q.prefix,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    name: q.name,
+    waitingCount: q.waitingCount,
   };
 }
 
@@ -32,9 +43,22 @@ export class MockQueueRepository implements QueueRepository {
   private overrides = new Map<string, Queue>();
 
   async getById(id: string): Promise<Queue | null> {
+    return this.getQueueById(id);
+  }
+
+  async getQueueById(id: string): Promise<Queue | null> {
     if (this.overrides.has(id)) return this.overrides.get(id)!;
     const business = getBusinessQueueById(id);
     return business ? businessQueueToDomain(business) : null;
+  }
+
+  async getQueueByService(serviceId: string): Promise<Queue | null> {
+    const found = MOCK_BUSINESS_QUEUES.find((q) => q.serviceId === serviceId);
+    return found ? businessQueueToDomain(found) : null;
+  }
+
+  async getOrganizationQueues(_organizationId: string): Promise<Queue[]> {
+    return MOCK_BUSINESS_QUEUES.map(businessQueueToDomain);
   }
 
   async listByDepartment(departmentId: string): Promise<Queue[]> {
@@ -43,17 +67,22 @@ export class MockQueueRepository implements QueueRepository {
     );
   }
 
-  async listBusinessQueues(): Promise<BusinessQueue[]> {
+  async listBusinessQueues(_organizationId?: string): Promise<BusinessQueue[]> {
     return MOCK_BUSINESS_QUEUES.map((q) => {
       const override = this.overrides.get(q.id);
       if (!override) return { ...q };
       return {
         ...q,
-        status: override.status,
+        status:
+          override.status === 'open'
+            ? 'active'
+            : (override.status as BusinessQueue['status']),
         currentServing: override.currentServingNumber,
         averageWaitMinutes: override.averageWaitingTime,
         waitingCount: override.waitingCount ?? q.waitingCount,
-        nextNumber: override.nextNumber ?? q.nextNumber,
+        nextNumber: override.nextNumber
+          ? `${override.prefix}${String(override.nextNumber).padStart(3, '0')}`
+          : q.nextNumber,
       };
     });
   }
@@ -79,17 +108,83 @@ export class MockQueueRepository implements QueueRepository {
     return getProgressSequence(ticketId);
   }
 
+  async createQueue(input: QueueCreateInput): Promise<Queue> {
+    const queue: Queue = {
+      id: `queue-${Date.now()}`,
+      organizationId: input.organizationId,
+      departmentId: input.departmentId,
+      serviceId: input.serviceId,
+      status: input.status ?? 'open',
+      currentNumber: '',
+      currentServingNumber: '',
+      nextNumber: 1,
+      averageServiceTime: input.averageServiceTime ?? 10,
+      averageWaitingTime: input.averageServiceTime ?? 10,
+      totalWaiting: 0,
+      prefix: input.prefix ?? 'A',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    this.overrides.set(queue.id, queue);
+    return queue;
+  }
+
   async update(id: string, input: QueueUpdateInput): Promise<Queue> {
+    return this.updateQueue(id, input);
+  }
+
+  async updateQueue(id: string, input: QueueUpdateInput): Promise<Queue> {
     const existing = (await this.getById(id)) ?? {
       id,
+      organizationId: '',
       departmentId: '',
+      serviceId: '',
+      currentNumber: '',
       currentServingNumber: '',
-      status: 'active' as const,
-      averageWaitingTime: 0,
+      status: 'open' as const,
+      nextNumber: 1,
+      averageServiceTime: 10,
+      averageWaitingTime: 10,
+      totalWaiting: 0,
+      prefix: 'A',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
-    const updated: Queue = { ...existing, ...input };
+    const updated: Queue = {
+      ...existing,
+      ...input,
+      currentNumber:
+        input.currentNumber ??
+        input.currentServingNumber ??
+        existing.currentNumber,
+      currentServingNumber:
+        input.currentServingNumber ??
+        input.currentNumber ??
+        existing.currentServingNumber,
+      averageServiceTime:
+        input.averageServiceTime ??
+        input.averageWaitingTime ??
+        existing.averageServiceTime,
+      averageWaitingTime:
+        input.averageWaitingTime ??
+        input.averageServiceTime ??
+        existing.averageWaitingTime,
+      updatedAt: new Date().toISOString(),
+    };
     this.overrides.set(id, updated);
     return updated;
+  }
+
+  async pauseQueue(id: string): Promise<Queue> {
+    return this.updateQueue(id, { status: 'paused' });
+  }
+
+  async resumeQueue(id: string): Promise<Queue> {
+    return this.updateQueue(id, { status: 'open' });
+  }
+
+  async closeQueue(id: string): Promise<Queue> {
+    return this.updateQueue(id, { status: 'closed' });
   }
 
   subscribe(id: string, callback: (payload: Queue) => void) {

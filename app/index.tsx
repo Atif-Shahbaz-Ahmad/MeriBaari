@@ -14,6 +14,7 @@ import { Colors } from '@/constants/colors';
 import { AuthHref, getHomeHref, getUnauthenticatedHref } from '@/features/auth/navigation';
 import { useAppBootstrap } from '@/hooks/use-auth';
 import { useColorScheme } from '@/hooks/use-theme';
+import { useAuthStore } from '@/store/auth-store';
 
 /**
  * Animated splash + auth/onboarding/role gate.
@@ -22,6 +23,7 @@ import { useColorScheme } from '@/hooks/use-theme';
 export default function SplashGate() {
   const scheme = useColorScheme();
   const { isReady, isAuthenticated, hasCompletedOnboarding, role } = useAppBootstrap();
+  const profileLoadFailed = useAuthStore((s) => s.profileLoadFailed);
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.92);
 
@@ -53,6 +55,9 @@ export default function SplashGate() {
     }
     if (!isAuthenticated) {
       return <Redirect href={getUnauthenticatedHref()} />;
+    }
+    if (profileLoadFailed) {
+      return <Redirect href={AuthHref.profileRecovery} />;
     }
     return <Redirect href={getHomeHref(role)} />;
   }

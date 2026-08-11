@@ -24,6 +24,7 @@ export type {
   JoinQueueInput,
   NotificationRepository,
   NotificationCreateInput,
+  NotificationListParams,
   BusinessSettingsRepository,
   BusinessProfileStats,
   AuthRepository,
@@ -42,6 +43,7 @@ export type {
 export {
   ProfileService,
   OrganizationService,
+  DepartmentService,
   OrganizationStructureService,
   ServiceService,
   QueueService,
@@ -55,6 +57,12 @@ export type { AvatarPlaceholder, AuthenticatedContext } from './services';
 export { AuthError, getAuthErrorMessage, toAuthError } from './errors/auth-error';
 export type { AuthErrorCode } from './errors/auth-error';
 export {
+  StructureError,
+  getStructureErrorMessage,
+  toStructureError,
+} from './errors/structure-error';
+export type { StructureErrorCode } from './errors/structure-error';
+export {
   UnimplementedRealtimeService,
   UnimplementedPushNotificationService,
   UnimplementedQrValidationService,
@@ -62,6 +70,9 @@ export {
 } from './future';
 export type {
   RealtimeService,
+  RealtimePostgresPayload,
+  RealtimeChangeEvent,
+  RealtimeConnectionStatus,
   PushNotificationService,
   QrValidationService,
   FileStorageService,

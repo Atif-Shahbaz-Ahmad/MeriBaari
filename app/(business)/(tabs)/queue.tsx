@@ -1,6 +1,7 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Megaphone } from 'lucide-react-native';
+import { Megaphone, PauseCircle, PlayCircle, XCircle } from 'lucide-react-native';
 
 import {
   ActionButton,
@@ -10,38 +11,121 @@ import {
 import { Screen } from '@/components/layout/Screen';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { getQueueErrorMessage, QueueError } from '@/domain/errors/queue-error';
 import { pushQueueActivity, pushQueueDetails, pushWalkIn } from '@/features/business/navigation';
+import { useMyOrganization } from '@/features/organization/hooks/use-organizations';
+import {
+  useCallNext,
+  useCloseQueue,
+  usePauseQueue,
+  useResumeQueue,
+  useServeCustomer,
+  useSkipCustomer,
+  useStartServing,
+} from '@/features/queue/hooks/use-queue-mutations';
+import {
+  useBusinessQueueDetails,
+  useBusinessQueues,
+  useWaitingCustomers,
+} from '@/features/queue/hooks/use-queue-queries';
+import { useBusinessQueueRealtime } from '@/features/queue/hooks/use-queue-realtime';
 import { useTheme } from '@/hooks/use-theme';
-import { useBusinessQueueStore } from '@/store/business-queue-store';
 import { formatWaitTime } from '@/utils/formatting';
 
 export default function BusinessQueueScreen() {
   const theme = useTheme();
-  const queues = useBusinessQueueStore((s) => s.queues);
-  const selectedQueueId = useBusinessQueueStore((s) => s.selectedQueueId);
-  const selectQueue = useBusinessQueueStore((s) => s.selectQueue);
-  const getWaitingCustomers = useBusinessQueueStore((s) => s.getWaitingCustomers);
-  const callNext = useBusinessQueueStore((s) => s.callNext);
-  const callCustomer = useBusinessQueueStore((s) => s.callCustomer);
-  const skipCustomer = useBusinessQueueStore((s) => s.skipCustomer);
-  const recallCustomer = useBusinessQueueStore((s) => s.recallCustomer);
-  const markComplete = useBusinessQueueStore((s) => s.markComplete);
-  const cancelTicket = useBusinessQueueStore((s) => s.cancelTicket);
+  const { data: organization } = useMyOrganization();
+  const {
+    data: queues = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useBusinessQueues(organization?.id);
+  const [selectedQueueId, setSelectedQueueId] = useState<string>('');
 
-  const queue = queues.find((q) => q.id === selectedQueueId) ?? queues[0];
-  const customers = queue ? getWaitingCustomers(queue.id) : [];
+  useEffect(() => {
+    if (!selectedQueueId && queues[0]?.id) {
+      setSelectedQueueId(queues[0].id);
+    }
+  }, [queues, selectedQueueId]);
+
+  const queue = useMemo(
+    () => queues.find((q) => q.id === selectedQueueId) ?? queues[0],
+    [queues, selectedQueueId],
+  );
+
+  useBusinessQueueRealtime(organization?.id, queue?.id);
+
+  const { data: customers = [], isFetching: customersLoading } =
+    useWaitingCustomers(queue?.id);
+  const { data: details } = useBusinessQueueDetails(queue?.id);
+
+  const callNext = useCallNext();
+  const startServing = useStartServing();
+  const serveCustomer = useServeCustomer();
+  const skipCustomer = useSkipCustomer();
+  const pauseQueue = usePauseQueue();
+  const resumeQueue = useResumeQueue();
+  const closeQueue = useCloseQueue();
+
+  const busy =
+    callNext.isPending ||
+    startServing.isPending ||
+    serveCustomer.isPending ||
+    skipCustomer.isPending ||
+    pauseQueue.isPending ||
+    resumeQueue.isPending ||
+    closeQueue.isPending;
+
+  if (isLoading) {
+    return (
+      <Screen>
+        <LoadingSkeleton count={4} variant="detail" />
+      </Screen>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Screen>
+        <ErrorState
+          title="Could not load queues"
+          description={getQueueErrorMessage(error)}
+          onRetry={() => void refetch()}
+        />
+      </Screen>
+    );
+  }
 
   if (!queue) {
     return (
       <Screen>
-        <EmptyState title="No queues" description="Create a service queue to start managing customers." />
+        <EmptyState
+          title="No queues yet"
+          description="Queues appear automatically when customers join an active service."
+        />
       </Screen>
     );
   }
+
+  const runAction = async (label: string, action: () => Promise<unknown>) => {
+    try {
+      await action();
+    } catch (e) {
+      if (e instanceof QueueError && e.code === 'no_customers_waiting') {
+        Alert.alert('Queue clear', 'No customers are waiting.');
+        return;
+      }
+      Alert.alert(label, getQueueErrorMessage(e));
+    }
+  };
 
   return (
     <Screen padded={false}>
@@ -62,7 +146,7 @@ export default function BusinessQueueScreen() {
               return (
                 <Pressable
                   key={item.id}
-                  onPress={() => selectQueue(item.id)}
+                  onPress={() => setSelectedQueueId(item.id)}
                   style={[
                     styles.queueChip,
                     {
@@ -126,15 +210,65 @@ export default function BusinessQueueScreen() {
                 </Text>
                 <Text style={[styles.metaLabel, { color: '#B45309' }]}>Avg. wait</Text>
               </View>
+              <View style={[styles.metaItem, { backgroundColor: Colors.secondary50 }]}>
+                <Text style={[styles.metaValue, { color: Colors.secondary600 }]}>
+                  {details?.completedToday ?? 0}
+                </Text>
+                <Text style={[styles.metaLabel, { color: Colors.secondary600 }]}>
+                  Served today
+                </Text>
+              </View>
             </View>
 
             <View style={styles.toolbar}>
               <ActionButton
-                label="Call Next"
+                label={callNext.isPending ? 'Calling…' : 'Call Next'}
                 icon={<Megaphone size={16} color={Colors.textInverse} />}
-                onPress={() => callNext(queue.id)}
-                disabled={queue.status !== 'active' || customers.length === 0}
+                onPress={() =>
+                  void runAction('Call next', () => callNext.mutateAsync(queue.id))
+                }
+                disabled={busy || queue.status !== 'active' || customers.length === 0}
                 style={styles.toolbarPrimary}
+              />
+              {queue.status === 'active' ? (
+                <ActionButton
+                  label="Pause"
+                  variant="neutral"
+                  icon={<PauseCircle size={16} color={Colors.primary} />}
+                  onPress={() =>
+                    void runAction('Pause queue', () => pauseQueue.mutateAsync(queue.id))
+                  }
+                  disabled={busy}
+                />
+              ) : queue.status === 'paused' ? (
+                <ActionButton
+                  label="Resume"
+                  variant="neutral"
+                  icon={<PlayCircle size={16} color={Colors.primary} />}
+                  onPress={() =>
+                    void runAction('Resume queue', () => resumeQueue.mutateAsync(queue.id))
+                  }
+                  disabled={busy}
+                />
+              ) : (
+                <ActionButton
+                  label="Reopen"
+                  variant="neutral"
+                  icon={<PlayCircle size={16} color={Colors.primary} />}
+                  onPress={() =>
+                    void runAction('Resume queue', () => resumeQueue.mutateAsync(queue.id))
+                  }
+                  disabled={busy}
+                />
+              )}
+              <ActionButton
+                label="Close"
+                variant="neutral"
+                icon={<XCircle size={16} color={Colors.error} />}
+                onPress={() =>
+                  void runAction('Close queue', () => closeQueue.mutateAsync(queue.id))
+                }
+                disabled={busy || queue.status === 'closed'}
               />
               <ActionButton label="Walk-in" variant="neutral" onPress={pushWalkIn} />
               <ActionButton
@@ -151,10 +285,12 @@ export default function BusinessQueueScreen() {
             title="Waiting customers"
             subtitle={`${customers.length} in line`}
           />
-          {customers.length === 0 ? (
+          {customersLoading && customers.length === 0 ? (
+            <LoadingSkeleton count={2} variant="list" />
+          ) : customers.length === 0 ? (
             <EmptyState
               title="Queue is clear"
-              description="No customers waiting. Add a walk-in or wait for the next join."
+              description="No customers waiting. Customers appear when they join this service."
             />
           ) : (
             customers.map((customer, index) => (
@@ -162,11 +298,31 @@ export default function BusinessQueueScreen() {
                 key={customer.id}
                 customer={customer}
                 index={index}
-                onCall={() => callCustomer(customer.id)}
-                onSkip={() => skipCustomer(customer.id)}
-                onRecall={() => recallCustomer(customer.id)}
-                onComplete={() => markComplete(customer.id)}
-                onCancel={() => cancelTicket(customer.id)}
+                onCall={() =>
+                  void runAction('Start serving', () =>
+                    startServing.mutateAsync(customer.id),
+                  )
+                }
+                onSkip={() =>
+                  void runAction('Skip customer', () =>
+                    skipCustomer.mutateAsync(customer.id),
+                  )
+                }
+                onRecall={() =>
+                  void runAction('Call customer', () =>
+                    startServing.mutateAsync(customer.id),
+                  )
+                }
+                onComplete={() =>
+                  void runAction('Serve customer', () =>
+                    serveCustomer.mutateAsync(customer.id),
+                  )
+                }
+                onCancel={() =>
+                  void runAction('Skip customer', () =>
+                    skipCustomer.mutateAsync(customer.id),
+                  )
+                }
               />
             ))
           )}

@@ -2,6 +2,8 @@ import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
   ArrowLeftRight,
+  Bell,
+  Building2,
   CircleHelp,
   Info,
   LogOut,
@@ -20,19 +22,32 @@ import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { AuthHref } from '@/features/auth/navigation';
+import { pushCreateOrganization, pushEditOrganization } from '@/features/business/navigation';
 import {
   pushAbout,
   pushHelp,
+  pushNotificationSettings,
   pushSettings,
   pushThemeSettings,
 } from '@/features/profile/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { dataAccess } from '@/data';
+import { useCurrentProfileQuery } from '@/features/profile/hooks/use-current-profile';
+import { useMyOrganization } from '@/features/organization/hooks/use-organizations';
 
 const MOCK_BUSINESS_PROFILE_STATS = dataAccess.MOCK_BUSINESS_PROFILE_STATS;
 
 export default function BusinessProfileScreen() {
-  const { user, role, signOut, switchRole } = useAuth();
+  const { user, profile, role, signOut, switchRole } = useAuth();
+  useCurrentProfileQuery(Boolean(user?.id));
+  const { data: organization } = useMyOrganization();
+
+  const displayName = profile?.fullName ?? user?.fullName;
+  const displayEmail = profile?.email ?? user?.email;
+  const displayPhone = profile?.phone ?? user?.phone;
+  const displayAvatar = profile?.avatarUrl ?? user?.avatarUrl;
+  const memberSince =
+    profile?.createdAt ?? MOCK_BUSINESS_PROFILE_STATS.membershipSince;
 
   const onSignOut = async () => {
     await signOut();
@@ -52,11 +67,11 @@ export default function BusinessProfileScreen() {
     <Screen padded={false} edges={['left', 'right', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <ProfileHeader
-          name={user?.fullName}
-          email={user?.email}
-          phone={user?.phone}
-          avatarUrl={user?.avatarUrl}
-          membershipSince={MOCK_BUSINESS_PROFILE_STATS.membershipSince}
+          name={displayName}
+          email={displayEmail}
+          phone={displayPhone}
+          avatarUrl={displayAvatar}
+          membershipSince={memberSince}
         />
 
         <Animated.View entering={FadeInDown.delay(60).duration(400)} style={styles.padded}>
@@ -82,9 +97,26 @@ export default function BusinessProfileScreen() {
         <View style={styles.padded}>
           <SettingsGroup title="Account" index={0}>
             <SettingsItem
+              icon={<Building2 size={18} color={Colors.primary} />}
+              label="My Organization"
+              description={
+                organization
+                  ? organization.name
+                  : 'Create or manage your business'
+              }
+              onPress={
+                organization ? pushEditOrganization : pushCreateOrganization
+              }
+            />
+            <SettingsItem
               icon={<Settings size={18} color={Colors.primary} />}
               label="Settings"
               onPress={pushSettings}
+            />
+            <SettingsItem
+              icon={<Bell size={18} color={Colors.primary} />}
+              label="Notifications"
+              onPress={pushNotificationSettings}
             />
             <SettingsItem
               icon={<Moon size={18} color={Colors.primary} />}

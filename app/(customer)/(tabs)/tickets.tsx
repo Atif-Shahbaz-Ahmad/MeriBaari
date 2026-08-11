@@ -7,25 +7,36 @@ import { Screen } from '@/components/layout/Screen';
 import { FilterTabs } from '@/components/tickets/FilterTabs';
 import { TicketCard } from '@/components/tickets/TicketCard';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { getQueueErrorMessage } from '@/domain/errors/queue-error';
 import { pushJoinQueueList } from '@/features/queue/navigation';
+import { useMyTickets } from '@/features/queue/hooks/use-queue-queries';
+import { useMyTicketsRealtime } from '@/features/queue/hooks/use-queue-realtime';
 import { pushTicketDetail, pushTicketHistory } from '@/features/tickets/navigation';
 import { useTheme } from '@/hooks/use-theme';
 import { dataAccess } from '@/data';
-import { useTicketStore } from '@/store/ticket-store';
 
 type TicketTab = 'active' | 'completed' | 'cancelled';
 
 export default function TicketsScreen() {
   const theme = useTheme();
-  const tickets = useTicketStore((s) => s.tickets);
+  const { data: tickets = [], isLoading, isError, error, refetch } = useMyTickets();
+  useMyTicketsRealtime();
   const [tab, setTab] = useState<TicketTab>('active');
 
   const active = useMemo(() => dataAccess.getActiveTickets(tickets), [tickets]);
-  const completed = useMemo(() => dataAccess.getCompletedTickets(tickets), [tickets]);
-  const cancelled = useMemo(() => dataAccess.getCancelledTickets(tickets), [tickets]);
+  const completed = useMemo(
+    () => dataAccess.getCompletedTickets(tickets),
+    [tickets],
+  );
+  const cancelled = useMemo(
+    () => dataAccess.getCancelledTickets(tickets),
+    [tickets],
+  );
 
   const list =
     tab === 'active' ? active : tab === 'completed' ? completed : cancelled;
@@ -35,6 +46,26 @@ export default function TicketsScreen() {
     { key: 'completed' as const, label: 'Completed', count: completed.length },
     { key: 'cancelled' as const, label: 'Cancelled', count: cancelled.length },
   ];
+
+  if (isLoading) {
+    return (
+      <Screen>
+        <LoadingSkeleton count={4} variant="ticket" />
+      </Screen>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Screen>
+        <ErrorState
+          title="Could not load tickets"
+          description={getQueueErrorMessage(error)}
+          onRetry={() => void refetch()}
+        />
+      </Screen>
+    );
+  }
 
   return (
     <Screen padded={false}>
@@ -82,16 +113,17 @@ export default function TicketsScreen() {
               onActionPress={tab === 'active' ? pushJoinQueueList : undefined}
             />
           ) : (
-            <View style={styles.stack}>
-              {list.map((ticket, index) => (
+            list.map((ticket, index) => (
+              <Animated.View
+                key={ticket.id}
+                entering={FadeInDown.delay(80 + index * 40).duration(350)}
+              >
                 <TicketCard
-                  key={ticket.id}
                   ticket={ticket}
-                  index={index}
                   onPress={() => pushTicketDetail(ticket.id)}
                 />
-              ))}
-            </View>
+              </Animated.View>
+            ))
           )}
         </View>
       </ScrollView>
@@ -101,9 +133,8 @@ export default function TicketsScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing['3xl'],
-    gap: Spacing.lg,
+    paddingBottom: Spacing['2xl'],
+    gap: Spacing.md,
   },
   padded: {
     paddingHorizontal: Spacing.md,
@@ -125,13 +156,10 @@ const styles = StyleSheet.create({
     ...Typography.body,
   },
   historyBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  stack: {
-    gap: Spacing.md,
   },
 });

@@ -1,11 +1,6 @@
-export type OrganizationCategory =
-  | 'hospitals'
-  | 'banks'
-  | 'government'
-  | 'clinics'
-  | 'universities'
-  | 'restaurants'
-  | 'others';
+import type { OrganizationCategoryId } from '@/constants/organization-categories';
+
+export type OrganizationCategory = OrganizationCategoryId;
 
 export type AvailabilityStatus = 'open' | 'busy' | 'closed';
 
@@ -14,6 +9,10 @@ export interface OrganizationCategoryMeta {
   label: string;
 }
 
+/**
+ * Presentation organization shape used by discovery cards.
+ * Prefer domain `Organization` from services when available.
+ */
 export interface Organization {
   id: string;
   name: string;
@@ -35,6 +34,11 @@ export interface Organization {
   popular: boolean;
   nearby: boolean;
   recentlyVisited: boolean;
+  logoUrl?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  isActive?: boolean;
+  status?: 'active' | 'inactive' | 'suspended';
   /** Lucide-style icon key for logo placeholder */
   logoIcon:
     | 'hospital'
@@ -57,8 +61,22 @@ export interface Department {
   averageWaitMinutes: number;
   estimatedQueueSize: number;
   availability: AvailabilityStatus;
-  icon: 'stethoscope' | 'heart' | 'tooth' | 'eye' | 'siren' | 'scan' | 'flask' | 'users' | 'file' | 'car';
+  icon:
+    | 'stethoscope'
+    | 'heart'
+    | 'tooth'
+    | 'eye'
+    | 'siren'
+    | 'scan'
+    | 'flask'
+    | 'users'
+    | 'file'
+    | 'car';
   serviceIds: string[];
+  isActive?: boolean;
+  displayOrder?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface QueueService {
@@ -71,4 +89,9 @@ export interface QueueService {
   averageWaitMinutes: number;
   peopleAhead: number;
   availability: AvailabilityStatus;
+  price?: number | null;
+  isActive?: boolean;
+  displayOrder?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }

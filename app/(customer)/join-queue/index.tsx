@@ -1,5 +1,5 @@
+import { useEffect, useState } from 'react';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
@@ -7,44 +7,39 @@ import { OrganizationCard } from '@/components/cards/OrganizationCard';
 import { Screen } from '@/components/layout/Screen';
 import { CategoryChip } from '@/components/ui/CategoryChip';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { FlowHeader } from '@/components/ui/FlowHeader';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { SectionHeader } from '@/components/ui/SectionHeader';
+import { ORGANIZATION_CATEGORIES_WITH_ALL } from '@/constants/organization-categories';
 import { Spacing } from '@/constants/spacing';
+import { getOrganizationErrorMessage } from '@/domain/errors/organization-error';
+import type { Organization } from '@/domain/models';
 import { pushOrganization } from '@/features/queue/navigation';
-import { dataAccess } from '@/data';
+import { useOrganizations } from '@/features/organization/hooks/use-organizations';
 import { useJoinQueueStore } from '@/store/join-queue-store';
-import type { Organization, OrganizationCategory } from '@/types';
-
-const ORGANIZATION_CATEGORIES = dataAccess.ORGANIZATION_CATEGORIES;
+import type { OrganizationCategory } from '@/types';
 
 export default function OrganizationListScreen() {
   const selectOrganization = useJoinQueueStore((s) => s.selectOrganization);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<OrganizationCategory | 'all'>('all');
-  const [loading, setLoading] = useState(true);
+  const [debouncedQuery, setDebouncedQuery] = useState('');
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 650);
+    const timer = setTimeout(() => setDebouncedQuery(query), 300);
     return () => clearTimeout(timer);
-  }, []);
+  }, [query]);
 
-  useEffect(() => {
-    setLoading(true);
-    const timer = setTimeout(() => setLoading(false), 350);
-    return () => clearTimeout(timer);
-  }, [query, category]);
-
-  const results = useMemo(
-    () => dataAccess.searchOrganizations(query, category),
-    [query, category],
-  );
-
-  const featured = results.filter((org) => org.featured);
-  const popular = results.filter((org) => org.popular);
-  const nearby = results.filter((org) => org.nearby);
-  const recent = results.filter((org) => org.recentlyVisited);
+  const {
+    data: results = [],
+    isLoading,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useOrganizations(debouncedQuery, category);
 
   const openOrganization = (org: Organization) => {
     selectOrganization(org.id);
@@ -73,7 +68,7 @@ export default function OrganizationListScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.chips}
           >
-            {ORGANIZATION_CATEGORIES.map((item) => (
+            {ORGANIZATION_CATEGORIES_WITH_ALL.map((item) => (
               <CategoryChip
                 key={item.id}
                 label={item.label}
@@ -84,10 +79,16 @@ export default function OrganizationListScreen() {
           </ScrollView>
         </Animated.View>
 
-        {loading ? (
+        {isLoading || (isFetching && results.length === 0) ? (
           <View style={styles.padded}>
             <LoadingSkeleton count={4} />
           </View>
+        ) : isError ? (
+          <ErrorState
+            title="Could not load organizations"
+            description={getOrganizationErrorMessage(error)}
+            onRetry={() => void refetch()}
+          />
         ) : results.length === 0 ? (
           <EmptyState
             title="No organizations found"
@@ -99,65 +100,13 @@ export default function OrganizationListScreen() {
             }}
           />
         ) : (
-          <>
-            {featured.length > 0 ? (
-              <Animated.View entering={FadeInDown.delay(100).duration(400)}>
-                <SectionHeader title="Featured" style={styles.sectionPad} />
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.horizontal}
-                >
-                  {featured.map((org) => (
-                    <OrganizationCard
-                      key={org.id}
-                      organization={org}
-                      compact
-                      onPress={() => openOrganization(org)}
-                    />
-                  ))}
-                </ScrollView>
-              </Animated.View>
-            ) : null}
-
-            {nearby.length > 0 ? (
-              <OrgSection
-                title="Nearby"
-                subtitle="Close to your location"
-                organizations={nearby}
-                onPress={openOrganization}
-                delay={140}
-              />
-            ) : null}
-
-            {popular.length > 0 ? (
-              <OrgSection
-                title="Popular"
-                subtitle="Most joined this week"
-                organizations={popular}
-                onPress={openOrganization}
-                delay={180}
-              />
-            ) : null}
-
-            {recent.length > 0 ? (
-              <OrgSection
-                title="Recently Visited"
-                subtitle="Pick up where you left off"
-                organizations={recent}
-                onPress={openOrganization}
-                delay={220}
-              />
-            ) : null}
-
-            <OrgSection
-              title="All Organizations"
-              subtitle={`${results.length} result${results.length === 1 ? '' : 's'}`}
-              organizations={results}
-              onPress={openOrganization}
-              delay={260}
-            />
-          </>
+          <OrgSection
+            title="All Organizations"
+            subtitle={`${results.length} result${results.length === 1 ? '' : 's'}`}
+            organizations={results}
+            onPress={openOrganization}
+            delay={100}
+          />
         )}
       </ScrollView>
     </Screen>
@@ -182,7 +131,11 @@ function OrgSection({
       <SectionHeader title={title} subtitle={subtitle} style={styles.sectionHeader} />
       <View style={styles.stack}>
         {organizations.map((org) => (
-          <OrganizationCard key={`${title}-${org.id}`} organization={org} onPress={() => onPress(org)} />
+          <OrganizationCard
+            key={`${title}-${org.id}`}
+            organization={org}
+            onPress={() => onPress(org)}
+          />
         ))}
       </View>
     </Animated.View>
@@ -203,14 +156,6 @@ const styles = StyleSheet.create({
   chips: {
     paddingHorizontal: Spacing.md,
     gap: Spacing.sm,
-  },
-  horizontal: {
-    paddingHorizontal: Spacing.md,
-    gap: Spacing.md,
-    paddingTop: Spacing.md,
-  },
-  sectionPad: {
-    paddingHorizontal: Spacing.md,
   },
   sectionHeader: {
     marginBottom: Spacing.md,

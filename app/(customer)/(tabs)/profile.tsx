@@ -28,12 +28,14 @@ import {
   pushEditProfile,
   pushHelp,
   pushLanguageSettings,
+  pushNotificationSettings,
   pushPrivacy,
   pushSettings,
   pushThemeSettings,
 } from '@/features/profile/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { dataAccess } from '@/data';
+import { useCurrentProfileQuery } from '@/features/profile/hooks/use-current-profile';
 import { usePreferencesStore } from '@/store/preferences-store';
 import { useThemeStore } from '@/store/theme-store';
 
@@ -41,11 +43,18 @@ const LANGUAGE_OPTIONS = dataAccess.LANGUAGE_OPTIONS;
 const MOCK_PROFILE_STATS = dataAccess.MOCK_PROFILE_STATS;
 
 export default function ProfileScreen() {
-  const { user, role, signOut, switchRole } = useAuth();
+  const { user, profile, role, signOut, switchRole } = useAuth();
+  useCurrentProfileQuery(Boolean(user?.id));
   const preference = useThemeStore((s) => s.preference);
   const language = usePreferencesStore((s) => s.language);
   const languageLabel =
     LANGUAGE_OPTIONS.find((o) => o.value === language)?.label ?? 'English';
+
+  const displayName = profile?.fullName ?? user?.fullName;
+  const displayEmail = profile?.email ?? user?.email;
+  const displayPhone = profile?.phone ?? user?.phone;
+  const displayAvatar = profile?.avatarUrl ?? user?.avatarUrl;
+  const memberSince = profile?.createdAt ?? MOCK_PROFILE_STATS.membershipSince;
 
   const onSignOut = async () => {
     await signOut();
@@ -65,11 +74,11 @@ export default function ProfileScreen() {
     <Screen padded={false} edges={['left', 'right', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <ProfileHeader
-          name={user?.fullName}
-          email={user?.email}
-          phone={user?.phone}
-          avatarUrl={user?.avatarUrl}
-          membershipSince={MOCK_PROFILE_STATS.membershipSince}
+          name={displayName}
+          email={displayEmail}
+          phone={displayPhone}
+          avatarUrl={displayAvatar}
+          membershipSince={memberSince}
         />
 
         <Animated.View entering={FadeInDown.delay(60).duration(400)} style={styles.padded}>
@@ -112,7 +121,7 @@ export default function ProfileScreen() {
             <SettingsItem
               icon={<Bell size={18} color={Colors.primary} />}
               label="Notification Preferences"
-              onPress={pushSettings}
+              onPress={pushNotificationSettings}
             />
             <SettingsItem
               icon={<Shield size={18} color={Colors.primary} />}

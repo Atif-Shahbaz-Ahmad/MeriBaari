@@ -5,7 +5,9 @@ export type QueueStatus =
   | 'completed'
   | 'cancelled'
   | 'missed'
-  | 'called';
+  | 'called'
+  | 'skipped'
+  | 'served';
 
 export interface QueueTicket {
   id: string;
@@ -41,6 +43,9 @@ export interface QueueTicket {
     | 'utensils'
     | 'landmark'
     | 'car';
+  queueEntryId?: string;
+  qrCode?: string;
+  queueStatus?: 'open' | 'paused' | 'closed' | 'active';
 }
 
 export interface QueueTimelineEntry {

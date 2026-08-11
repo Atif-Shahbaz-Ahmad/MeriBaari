@@ -43,8 +43,8 @@ const PRESETS: Record<
     Icon: Inbox,
   },
   notifications: {
-    title: 'No notifications',
-    description: 'Queue updates and reminders will show up here.',
+    title: 'No notifications yet',
+    description: "You'll see queue updates and important alerts here.",
     Icon: BellOff,
   },
   tickets: {

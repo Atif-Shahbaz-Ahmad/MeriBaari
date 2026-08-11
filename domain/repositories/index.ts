@@ -7,22 +7,33 @@ export type {
 export type {
   OrganizationRepository,
   OrganizationSearchParams,
+  OrganizationCreateInput,
+  OrganizationUpdateInput,
 } from './organization.repository';
 export type {
   DepartmentRepository,
   DepartmentCreateInput,
   DepartmentUpdateInput,
+  DepartmentListParams,
 } from './department.repository';
 export type {
   ServiceRepository,
   ServiceCreateInput,
   ServiceUpdateInput,
+  ServiceListParams,
 } from './service.repository';
-export type { QueueRepository, QueueUpdateInput } from './queue.repository';
+export type {
+  QueueRepository,
+  QueueUpdateInput,
+  QueueCreateInput,
+} from './queue.repository';
 export type {
   QueueEntryRepository,
   QueueEntryCreateInput,
   QueueEntryUpdateInput,
+  JoinQueueByServiceInput,
+  CallNextResult,
+  QueueEntryActionResult,
 } from './queue-entry.repository';
 export type {
   TicketRepository,
@@ -32,7 +43,14 @@ export type {
 export type {
   NotificationRepository,
   NotificationCreateInput,
+  NotificationListParams,
 } from './notification.repository';
+export type {
+  PushTokenRepository,
+  PushTokenRecord,
+  PushPlatform,
+  RegisterPushTokenInput,
+} from './push-token.repository';
 export type {
   BusinessSettingsRepository,
   BusinessProfileStats,

@@ -12,10 +12,14 @@ import { Radius, Shadows, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
 import { formatWaitTime } from '@/utils/formatting';
-import type { AvailabilityStatus, QueueService } from '@/types';
+import type { AvailabilityStatus } from '@/types';
+import type { Service as DomainService } from '@/domain/models';
+import type { QueueService } from '@/types';
+
+type ServiceCardModel = DomainService | QueueService;
 
 interface ServiceCardProps {
-  service: QueueService;
+  service: ServiceCardModel;
   selected?: boolean;
   onPress?: () => void;
 }
@@ -75,9 +79,30 @@ export function JoinServiceCard({ service, selected = false, onPress }: ServiceC
       <Text style={[styles.description, { color: theme.textSecondary }]}>{service.description}</Text>
 
       <View style={styles.metaRow}>
-        <Meta label="Duration" value={formatWaitTime(service.estimatedDurationMinutes)} />
-        <Meta label="Avg wait" value={`~${formatWaitTime(service.averageWaitMinutes)}`} />
-        <Meta label="Ahead" value={String(service.peopleAhead)} />
+        <Meta
+          label="Duration"
+          value={formatWaitTime(
+            'durationMinutes' in service
+              ? service.durationMinutes
+              : service.estimatedDurationMinutes,
+          )}
+        />
+        <Meta
+          label="Price"
+          value={
+            service.price === null || service.price === undefined
+              ? '—'
+              : `Rs ${Number(service.price).toFixed(0)}`
+          }
+        />
+        <Meta
+          label="Status"
+          value={
+            ('isActive' in service ? service.isActive : true)
+              ? 'Available'
+              : 'Inactive'
+          }
+        />
       </View>
     </AnimatedPressable>
   );

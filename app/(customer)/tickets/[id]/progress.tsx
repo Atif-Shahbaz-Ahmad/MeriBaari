@@ -1,5 +1,4 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Gauge, Timer, Users, Zap } from 'lucide-react-native';
@@ -11,12 +10,16 @@ import { QueueTimeline } from '@/components/tickets/QueueTimeline';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FlowHeader } from '@/components/ui/FlowHeader';
+import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import {
+  useTicket,
+  useTicketProgress,
+} from '@/features/queue/hooks/use-queue-queries';
+import { useTicketRealtime } from '@/features/queue/hooks/use-queue-realtime';
 import { useTheme } from '@/hooks/use-theme';
-import { dataAccess } from '@/data';
-import { useTicketStore } from '@/store/ticket-store';
 import {
   formatClockTime,
   formatRelativeTime,
@@ -26,11 +29,17 @@ import {
 export default function QueueProgressDetailsScreen() {
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const ticket = useTicketStore((s) => s.tickets.find((t) => t.id === id));
-  const progress = useMemo(
-    () => (id ? dataAccess.getQueueProgress(id) : undefined),
-    [id],
-  );
+  const { data: ticket, isLoading: ticketLoading } = useTicket(id);
+  const { data: progress, isLoading: progressLoading } = useTicketProgress(id);
+  useTicketRealtime(id, ticket?.queueId);
+
+  if (ticketLoading || progressLoading) {
+    return (
+      <Screen>
+        <LoadingSkeleton count={3} variant="ticket" />
+      </Screen>
+    );
+  }
 
   if (!ticket || !progress) {
     return (
@@ -142,10 +151,10 @@ export default function QueueProgressDetailsScreen() {
               <Text style={[styles.vizTitle, { color: theme.text }]}>Live visualization</Text>
             </View>
             <View style={styles.bars}>
-              {progress.timeline.map((entry) => {
+              {progress.timeline.map((entry, index) => {
                 const height = entry.isYou ? 72 : entry.isServing ? 64 : entry.isPast ? 36 : 48;
                 return (
-                  <View key={entry.ticketNumber} style={styles.barCol}>
+                  <View key={`${entry.ticketNumber}-${index}`} style={styles.barCol}>
                     <View
                       style={[
                         styles.bar,

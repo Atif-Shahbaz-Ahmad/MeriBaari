@@ -8,33 +8,53 @@ import { FilterTabs } from '@/components/tickets/FilterTabs';
 import { NotificationCard } from '@/components/profile/NotificationCard';
 import { SectionTitle } from '@/components/profile/SectionTitle';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
-import { dataAccess } from '@/data';
-import { useNotificationStore } from '@/store/notification-store';
+import {
+  useClearAllNotifications,
+  useDeleteNotification,
+  useMarkAllNotificationsAsRead,
+  useMarkNotificationAsRead,
+  useNotifications,
+} from '@/features/notifications/hooks/use-notifications';
+import { navigateFromNotification } from '@/features/notifications/navigation';
+import { groupNotificationsByDay } from '@/features/notifications/group-by-day';
 import type { NotificationCategory } from '@/types';
 
 type NotifTab = NotificationCategory | 'all';
 
 export default function NotificationsScreen() {
   const theme = useTheme();
-  const notifications = useNotificationStore((s) => s.notifications);
-  const markAsRead = useNotificationStore((s) => s.markAsRead);
-  const markAllAsRead = useNotificationStore((s) => s.markAllAsRead);
-  const deleteNotification = useNotificationStore((s) => s.deleteNotification);
-  const clearAll = useNotificationStore((s) => s.clearAll);
-  const unreadCount = useNotificationStore((s) => s.unreadCount());
+  const {
+    data: notifications = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useNotifications();
+  const markAsRead = useMarkNotificationAsRead();
+  const markAllAsRead = useMarkAllNotificationsAsRead();
+  const deleteNotification = useDeleteNotification();
+  const clearAll = useClearAllNotifications();
 
   const [tab, setTab] = useState<NotifTab>('all');
 
-  const filtered = useMemo(
-    () => dataAccess.filterNotificationsByCategory(notifications, tab),
-    [notifications, tab],
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !(n.isRead ?? n.read)).length,
+    [notifications],
   );
+
+  const filtered = useMemo(() => {
+    if (tab === 'all') return notifications;
+    return notifications.filter((n) => n.category === tab);
+  }, [notifications, tab]);
+
   const groups = useMemo(
-    () => dataAccess.groupNotificationsByDay(filtered),
+    () => groupNotificationsByDay(filtered),
     [filtered],
   );
 
@@ -62,16 +82,25 @@ export default function NotificationsScreen() {
     },
   ];
 
+  const onOpen = (id: string) => {
+    const item = notifications.find((n) => n.id === id);
+    if (!item) return;
+    if (!(item.isRead ?? item.read)) {
+      markAsRead.mutate(id);
+    }
+    navigateFromNotification(item);
+  };
+
   const onLongPress = (id: string, title: string) => {
     Alert.alert(title, 'Choose an action', [
       {
         text: 'Mark as read',
-        onPress: () => markAsRead(id),
+        onPress: () => markAsRead.mutate(id),
       },
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: () => deleteNotification(id),
+        onPress: () => deleteNotification.mutate(id),
       },
       { text: 'Cancel', style: 'cancel' },
     ]);
@@ -80,9 +109,37 @@ export default function NotificationsScreen() {
   const onClearAll = () => {
     Alert.alert('Clear all notifications?', 'This removes every notification from your inbox.', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Clear all', style: 'destructive', onPress: clearAll },
+      {
+        text: 'Clear all',
+        style: 'destructive',
+        onPress: () => clearAll.mutate(),
+      },
     ]);
   };
+
+  if (isLoading) {
+    return (
+      <Screen>
+        <LoadingSkeleton count={4} variant="detail" />
+      </Screen>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Screen>
+        <ErrorState
+          title="Could not load notifications"
+          description={
+            error instanceof Error
+              ? error.message
+              : 'Check your connection and try again.'
+          }
+          onRetry={() => void refetch()}
+        />
+      </Screen>
+    );
+  }
 
   return (
     <Screen padded={false}>
@@ -103,7 +160,7 @@ export default function NotificationsScreen() {
           {notifications.length > 0 ? (
             <View style={styles.actions}>
               <Pressable
-                onPress={markAllAsRead}
+                onPress={() => markAllAsRead.mutate()}
                 style={[styles.actionChip, { backgroundColor: Colors.primary50 }]}
                 accessibilityRole="button"
                 accessibilityLabel="Mark all as read"
@@ -131,7 +188,11 @@ export default function NotificationsScreen() {
         </Animated.View>
 
         {groups.length === 0 ? (
-          <EmptyState preset="notifications" />
+          <EmptyState
+            preset="notifications"
+            title="No notifications yet"
+            description="You'll see queue updates and important alerts here."
+          />
         ) : (
           groups.map((group, groupIndex) => (
             <Animated.View
@@ -146,7 +207,7 @@ export default function NotificationsScreen() {
                     key={item.id}
                     notification={item}
                     index={index}
-                    onPress={() => markAsRead(item.id)}
+                    onPress={() => onOpen(item.id)}
                     onLongPress={() => onLongPress(item.id, item.title)}
                   />
                 ))}

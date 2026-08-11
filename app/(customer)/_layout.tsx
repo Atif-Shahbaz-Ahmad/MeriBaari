@@ -11,15 +11,20 @@ export default function CustomerLayout() {
   const isInitialized = useAuthStore((s) => s.isInitialized);
   const isRestoringSession = useAuthStore((s) => s.isRestoringSession);
   const isProfileLoading = useAuthStore((s) => s.isProfileLoading);
+  const profileLoadFailed = useAuthStore((s) => s.profileLoadFailed);
   const session = useAuthStore((s) => s.session);
   const role = useAuthStore((s) => s.role);
 
-  if (!isInitialized || isRestoringSession || (session && isProfileLoading && !role)) {
+  if (!isInitialized || isRestoringSession || (session && isProfileLoading && !role && !profileLoadFailed)) {
     return null;
   }
 
   if (!session) {
     return <Redirect href={getUnauthenticatedHref()} />;
+  }
+
+  if (profileLoadFailed) {
+    return <Redirect href={AuthHref.profileRecovery} />;
   }
 
   if (!role) {

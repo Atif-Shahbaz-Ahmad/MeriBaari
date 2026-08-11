@@ -1,6 +1,8 @@
-import type { TicketRepository, JoinQueueInput } from '@/domain/repositories';
-import type { QueueTicket } from '@/domain/models';
-import type { TicketStatus } from '@/domain/models';
+import type {
+  JoinQueueInput,
+  TicketRepository,
+} from '@/domain/repositories';
+import type { QueueTicket, TicketStatus } from '@/domain/models';
 import { isActiveStatus } from '@/mock/tickets';
 
 export class TicketService {
@@ -8,6 +10,18 @@ export class TicketService {
 
   getById(id: string) {
     return this.tickets.getById(id);
+  }
+
+  getTicketById(id: string) {
+    return this.tickets.getTicketById(id);
+  }
+
+  getMyTickets() {
+    return this.tickets.getMyTickets();
+  }
+
+  getActiveTicket() {
+    return this.tickets.getActiveTicket();
   }
 
   list() {
@@ -34,6 +48,10 @@ export class TicketService {
     return this.tickets.getPrimaryActive(tickets);
   }
 
+  getJoinPreview(serviceId: string) {
+    return this.tickets.getJoinPreview(serviceId);
+  }
+
   joinQueue(input: JoinQueueInput) {
     return this.tickets.joinQueue(input);
   }
@@ -46,13 +64,17 @@ export class TicketService {
     return this.tickets.cancel(id);
   }
 
+  cancelQueueEntry(ticketId: string) {
+    return this.tickets.cancelQueueEntry(ticketId);
+  }
+
   async updateStatus(id: string, status: TicketStatus) {
     const ticket = await this.tickets.getById(id);
     if (!ticket) throw new Error(`Ticket not found: ${id}`);
 
     const patch: Parameters<TicketRepository['update']>[1] = { status };
 
-    if (status === 'completed') {
+    if (status === 'completed' || status === 'served') {
       patch.completedAt = new Date().toISOString();
       patch.peopleAhead = 0;
       patch.position = 0;
@@ -65,7 +87,7 @@ export class TicketService {
       );
     }
 
-    if (status === 'cancelled' || status === 'missed') {
+    if (status === 'cancelled' || status === 'missed' || status === 'skipped') {
       patch.cancelledAt = new Date().toISOString();
       patch.peopleAhead = 0;
       patch.position = 0;

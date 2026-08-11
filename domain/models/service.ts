@@ -10,19 +10,25 @@ export type ServiceStatus = 'active' | 'inactive' | 'paused';
 export interface Service {
   id: string;
   departmentId: string;
+  /** Denormalized from parent department for convenience. */
   organizationId: string;
   name: string;
   description: string;
   /** Maps to `services.estimated_duration`. */
+  durationMinutes: number;
+  /** Alias of durationMinutes. */
   estimatedDuration: number;
-  /**
-   * Alias for join-queue UI which historically used `estimatedDurationMinutes`.
-   * Kept in sync with `estimatedDuration` by mappers/repositories.
-   */
+  /** Alias for join-queue UI. */
   estimatedDurationMinutes: number;
+  /** Nullable — some businesses omit pricing. */
+  price: number | null;
+  isActive: boolean;
+  displayOrder: number;
+  createdAt: string;
+  updatedAt: string;
   status: ServiceStatus;
 
-  /** Live queue snapshot fields for join-queue UI. */
+  /** Live queue snapshot fields for join-queue UI (defaults until queues ship). */
   averageWaitMinutes: number;
   peopleAhead: number;
   availability: AvailabilityStatus;

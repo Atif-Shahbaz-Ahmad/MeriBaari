@@ -11,6 +11,7 @@ export const AuthHref = {
   verifyEmail: '/(auth)/verify-email' as Href,
   forgotPassword: '/(auth)/forgot-password' as Href,
   roleSelect: '/(auth)/role-select' as Href,
+  profileRecovery: '/(auth)/profile-recovery' as Href,
   customerHome: '/(customer)/(tabs)' as Href,
   customerTickets: '/(customer)/(tabs)/tickets' as Href,
   customerNotifications: '/(customer)/(tabs)/notifications' as Href,

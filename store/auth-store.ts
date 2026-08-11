@@ -2,8 +2,11 @@ import { create } from 'zustand';
 
 import { getAuthErrorMessage, toAuthError } from '@/domain/errors/auth-error';
 import type { Profile } from '@/domain/models';
+import type { ProfileUpdateInput } from '@/domain/repositories';
 import { normalizeRole } from '@/features/auth/roles';
+import { profileQueryKeys } from '@/features/profile/query-keys';
 import { getContainer } from '@/data';
+import { queryClient } from '@/lib/query-client';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import type { AuthSession, OtpChannel, UserRole } from '@/types';
 
@@ -18,11 +21,15 @@ interface AuthState {
   isInitialized: boolean;
   isRestoringSession: boolean;
   isProfileLoading: boolean;
+  /** Session exists but profiles row could not be loaded. */
+  profileLoadFailed: boolean;
   error: string | null;
   needsEmailVerification: boolean;
   pendingVerificationEmail: string | null;
 
   initialize: () => Promise<void>;
+  /** Alias for initialize. */
+  initializeAuth: () => Promise<void>;
   sendOtp: (channel: OtpChannel, destination: string) => Promise<void>;
   verifyOtp: (
     channel: OtpChannel,
@@ -36,9 +43,7 @@ interface AuthState {
     role?: UserRole | null,
   ) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
-  /** Alias for email/password sign-in. */
   login: (email: string, password: string) => Promise<void>;
-  /** Alias for email/password sign-up. */
   signup: (
     email: string,
     password: string,
@@ -50,23 +55,22 @@ interface AuthState {
   resendSignupEmail: (email?: string) => Promise<void>;
   clearPendingVerification: () => void;
   refreshSession: () => Promise<void>;
-  /** Re-fetch profiles row and sync role into auth state. */
   refreshProfile: () => Promise<void>;
+  updateProfile: (input: ProfileUpdateInput) => Promise<void>;
+  /** Sync a profile fetched via React Query into auth state. */
+  applyProfile: (profile: Profile) => void;
   signInWithDemo: () => Promise<void>;
   setRole: (role: UserRole) => Promise<void>;
-  /** DEV — swap Customer ↔ Business by updating profiles.role. */
   switchRole: (role: UserRole) => Promise<void>;
   signOut: () => Promise<void>;
-  /** Alias for signOut. */
   logout: () => Promise<void>;
   clearError: () => void;
-  /** Handle magic-link / confirm deep links (meribaari://...). */
   handleAuthUrl: (url: string) => Promise<boolean>;
 }
 
 function applyAuthenticated(
   session: AuthSession,
-  profile: Profile | null,
+  profile: Profile,
 ): Pick<
   AuthState,
   | 'session'
@@ -76,16 +80,18 @@ function applyAuthenticated(
   | 'error'
   | 'needsEmailVerification'
   | 'pendingVerificationEmail'
+  | 'profileLoadFailed'
 > {
-  const role = normalizeRole(profile?.role ?? session.user.role);
+  // Database profile is the source of truth for role — never invent from mocks.
+  const role = normalizeRole(profile.role);
   const mergedSession: AuthSession = {
     ...session,
     user: {
       ...session.user,
-      fullName: profile?.fullName ?? session.user.fullName,
-      phone: profile?.phone ?? session.user.phone,
-      email: profile?.email ?? session.user.email,
-      avatarUrl: profile?.avatarUrl ?? session.user.avatarUrl,
+      fullName: profile.fullName ?? session.user.fullName,
+      phone: profile.phone ?? session.user.phone,
+      email: profile.email ?? session.user.email,
+      avatarUrl: profile.avatarUrl ?? session.user.avatarUrl,
       role,
     },
   };
@@ -98,6 +104,7 @@ function applyAuthenticated(
     error: null,
     needsEmailVerification: false,
     pendingVerificationEmail: null,
+    profileLoadFailed: false,
   };
 }
 
@@ -110,6 +117,7 @@ function clearAuth(): Pick<
   | 'error'
   | 'needsEmailVerification'
   | 'pendingVerificationEmail'
+  | 'profileLoadFailed'
 > {
   return {
     session: null,
@@ -119,7 +127,12 @@ function clearAuth(): Pick<
     error: null,
     needsEmailVerification: false,
     pendingVerificationEmail: null,
+    profileLoadFailed: false,
   };
+}
+
+function invalidateProfileQueries() {
+  void queryClient.invalidateQueries({ queryKey: profileQueryKeys.all });
 }
 
 let authListenerUnsub: AuthListenerUnsub = null;
@@ -134,6 +147,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isInitialized: false,
   isRestoringSession: false,
   isProfileLoading: false,
+  profileLoadFailed: false,
   error: null,
   needsEmailVerification: false,
   pendingVerificationEmail: null,
@@ -142,22 +156,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   clearPendingVerification: () =>
     set({ needsEmailVerification: false, pendingVerificationEmail: null }),
 
+  applyProfile: (profile) => {
+    const session = get().session;
+    if (!session) return;
+    set(applyAuthenticated(session, profile));
+  },
+
   handleAuthUrl: async (url) => {
-    // Concurrent deep-link handlers (Linking + /auth/callback) may race.
-    if (get().session) return true;
+    if (get().session && get().profile) return true;
 
     set({ isLoading: true, isProfileLoading: true, error: null });
     try {
       const ctx = await getContainer().authService.establishSessionFromUrl(url);
       if (!ctx) {
-        if (get().session) return true;
+        if (get().session && get().profile) return true;
         set({ isLoading: false, isProfileLoading: false });
         return false;
       }
       set(applyAuthenticated(ctx.session, ctx.profile));
+      invalidateProfileQueries();
       return true;
     } catch (e) {
-      if (get().session) return true;
+      if (get().session && get().profile) return true;
       const message = getAuthErrorMessage(e);
       set({ error: message });
       throw toAuthError(e);
@@ -170,7 +190,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (initializing) return initializing;
 
     initializing = (async () => {
-      set({ isRestoringSession: true, isProfileLoading: true, error: null });
+      set({
+        isRestoringSession: true,
+        isProfileLoading: true,
+        profileLoadFailed: false,
+        error: null,
+      });
       const { authService } = getContainer();
 
       try {
@@ -182,28 +207,49 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         authListenerUnsub = authService.onAuthStateChange((session) => {
           void (async () => {
             if (!session) {
+              try {
+                await getContainer().pushNotificationService.deactivateCurrentDevice();
+              } catch {
+                /* ignore */
+              }
+              try {
+                getContainer().realtimeService.unsubscribeAll();
+              } catch {
+                /* ignore cleanup errors */
+              }
               if (get().session) {
                 set(clearAuth());
+                invalidateProfileQueries();
               }
               return;
             }
 
             if (
               get().session?.accessToken === session.accessToken &&
-              get().profile
+              get().profile &&
+              !get().profileLoadFailed
             ) {
               return;
             }
 
-            set({ isProfileLoading: true });
+            set({ isProfileLoading: true, profileLoadFailed: false });
             try {
               const ctx = await authService.loadProfileForSession(session);
               set({
                 ...applyAuthenticated(ctx.session, ctx.profile),
                 isProfileLoading: false,
               });
-            } catch {
-              set({ isProfileLoading: false });
+              invalidateProfileQueries();
+            } catch (profileError) {
+              set({
+                session,
+                user: session.user,
+                profile: null,
+                role: null,
+                profileLoadFailed: true,
+                isProfileLoading: false,
+                error: getAuthErrorMessage(profileError),
+              });
             }
           })();
         });
@@ -218,15 +264,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               isRestoringSession: false,
               isProfileLoading: false,
             });
+            invalidateProfileQueries();
           } catch (profileError) {
-            // Keep the session so auto-login still works; role gate will ask again if needed.
+            // Keep session, but do NOT route from metadata/mock role.
             set({
               session: existing,
               user: existing.user,
               profile: null,
-              role: normalizeRole(existing.user.role),
+              role: null,
+              profileLoadFailed: true,
               error: getAuthErrorMessage(profileError),
               needsEmailVerification: false,
+              pendingVerificationEmail: null,
               isInitialized: true,
               isRestoringSession: false,
               isProfileLoading: false,
@@ -257,6 +306,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return initializing;
   },
 
+  initializeAuth: async () => {
+    await get().initialize();
+  },
+
   sendOtp: async (channel, destination) => {
     set({ isLoading: true, error: null });
     try {
@@ -279,6 +332,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         token,
       );
       set(applyAuthenticated(ctx.session, ctx.profile));
+      invalidateProfileQueries();
     } catch (e) {
       const message = getAuthErrorMessage(e);
       set({ error: message });
@@ -295,6 +349,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       error: null,
       needsEmailVerification: false,
       pendingVerificationEmail: null,
+      profileLoadFailed: false,
     });
     try {
       const result = await getContainer().authService.signUpWithEmail({
@@ -313,6 +368,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return;
       }
       set(applyAuthenticated(result.context.session, result.context.profile));
+      invalidateProfileQueries();
     } catch (e) {
       const message = getAuthErrorMessage(e);
       set({ error: message });
@@ -323,13 +379,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signInWithEmail: async (email, password) => {
-    set({ isLoading: true, isProfileLoading: true, error: null });
+    set({
+      isLoading: true,
+      isProfileLoading: true,
+      error: null,
+      profileLoadFailed: false,
+    });
     try {
       const ctx = await getContainer().authService.signInWithEmail({
         email,
         password,
       });
       set(applyAuthenticated(ctx.session, ctx.profile));
+      invalidateProfileQueries();
     } catch (e) {
       const message = getAuthErrorMessage(e);
       set({ error: message });
@@ -348,10 +410,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signInWithGoogle: async () => {
-    set({ isLoading: true, isProfileLoading: true, error: null });
+    set({
+      isLoading: true,
+      isProfileLoading: true,
+      error: null,
+      profileLoadFailed: false,
+    });
     try {
       const ctx = await getContainer().authService.signInWithGoogle();
       set(applyAuthenticated(ctx.session, ctx.profile));
+      invalidateProfileQueries();
     } catch (e) {
       const message = getAuthErrorMessage(e);
       set({ error: message });
@@ -400,13 +468,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const session = await getContainer().authService.refreshSession();
       if (!session) {
         set(clearAuth());
+        invalidateProfileQueries();
         return;
       }
       const ctx = await getContainer().authService.loadProfileForSession(session);
       set(applyAuthenticated(ctx.session, ctx.profile));
+      invalidateProfileQueries();
     } catch (e) {
       const message = getAuthErrorMessage(e);
       set({ ...clearAuth(), error: message });
+      invalidateProfileQueries();
       throw toAuthError(e);
     } finally {
       set({ isLoading: false, isProfileLoading: false });
@@ -417,7 +488,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const session = get().session;
     if (!session?.user.id) return;
 
-    set({ isProfileLoading: true, error: null });
+    set({ isProfileLoading: true, error: null, profileLoadFailed: false });
     try {
       const { profileService } = getContainer();
       let profile = await profileService.refresh();
@@ -427,16 +498,46 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           email: session.user.email,
           phone: session.user.phone,
           avatarUrl: session.user.avatarUrl,
-          role: session.user.role ?? null,
+          role: null,
         });
       }
       set(applyAuthenticated(session, profile));
+      invalidateProfileQueries();
+    } catch (e) {
+      const message = getAuthErrorMessage(e);
+      set({
+        error: message,
+        profile: null,
+        role: null,
+        profileLoadFailed: true,
+      });
+      throw toAuthError(e);
+    } finally {
+      set({ isProfileLoading: false });
+    }
+  },
+
+  updateProfile: async (input) => {
+    const session = get().session;
+    const userId = session?.user.id;
+    if (!userId) {
+      throw toAuthError(new Error('You must be signed in to update your profile.'));
+    }
+
+    set({ isLoading: true, isProfileLoading: true, error: null });
+    try {
+      const profile = await getContainer().profileService.updateProfile(
+        userId,
+        input,
+      );
+      set(applyAuthenticated(session, profile));
+      invalidateProfileQueries();
     } catch (e) {
       const message = getAuthErrorMessage(e);
       set({ error: message });
       throw toAuthError(e);
     } finally {
-      set({ isProfileLoading: false });
+      set({ isLoading: false, isProfileLoading: false });
     }
   },
 
@@ -451,6 +552,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const ctx = await getContainer().authService.createDemoSession(null);
       set(applyAuthenticated(ctx.session, ctx.profile));
+      invalidateProfileQueries();
     } catch (e) {
       const message = getAuthErrorMessage(e);
       set({ error: message });
@@ -466,10 +568,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     set({ isLoading: true, isProfileLoading: true, error: null });
     try {
-      const profile = await getContainer().authService.setRole(userId, role);
+      const profile = await getContainer().profileService.setRole(userId, role);
       const session = get().session;
       if (!session) return;
       set(applyAuthenticated(session, profile));
+      invalidateProfileQueries();
     } catch (e) {
       const message = getAuthErrorMessage(e);
       set({ error: message });
@@ -480,33 +583,30 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   switchRole: async (role) => {
-    const userId = get().user?.id;
-    if (!userId) return;
-
-    set({ isLoading: true, isProfileLoading: true, error: null });
-    try {
-      const profile = await getContainer().authService.setRole(userId, role);
-      const session = get().session;
-      if (!session) return;
-      set(applyAuthenticated(session, profile));
-    } catch (e) {
-      const message = getAuthErrorMessage(e);
-      set({ error: message });
-      throw toAuthError(e);
-    } finally {
-      set({ isLoading: false, isProfileLoading: false });
-    }
+    await get().setRole(role);
   },
 
   signOut: async () => {
     set({ isLoading: true, error: null });
     try {
+      try {
+        await getContainer().pushNotificationService.deactivateCurrentDevice();
+      } catch {
+        /* ignore push cleanup errors */
+      }
+      try {
+        getContainer().realtimeService.unsubscribeAll();
+      } catch {
+        /* ignore cleanup errors */
+      }
       await getContainer().authService.signOut();
       set(clearAuth());
     } catch (e) {
       set({ ...clearAuth(), error: getAuthErrorMessage(e) });
     } finally {
       set({ isLoading: false, isProfileLoading: false });
+      invalidateProfileQueries();
+      queryClient.clear();
     }
   },
 

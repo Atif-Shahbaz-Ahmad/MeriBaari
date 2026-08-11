@@ -18,38 +18,31 @@ import {
 import { Spacing } from '@/constants/spacing';
 import { useAuth } from '@/hooks/use-auth';
 import { AuthHref } from '@/features/auth/navigation';
-import { pushJoinQueueList, pushOrganization } from '@/features/queue/navigation';
+import { pushJoinQueueList } from '@/features/queue/navigation';
+import {
+  useMyActiveTicket,
+  useTicketProgress,
+} from '@/features/queue/hooks/use-queue-queries';
+import { useMyTicketsRealtime } from '@/features/queue/hooks/use-queue-realtime';
 import { pushTicketDetail, pushTicketHistory } from '@/features/tickets/navigation';
-import { dataAccess } from '@/data';
-import { useJoinQueueStore } from '@/store/join-queue-store';
-import { useNotificationStore } from '@/store/notification-store';
-import { useTicketStore } from '@/store/ticket-store';
 import { getGreeting } from '@/utils/formatting';
+import { useUnreadNotificationCount } from '@/features/notifications/hooks/use-notifications';
 
 export default function HomeScreen() {
   const { user } = useAuth();
-  const selectOrganization = useJoinQueueStore((s) => s.selectOrganization);
-  const tickets = useTicketStore((s) => s.tickets);
-  const unreadCount = useNotificationStore((s) => s.unreadCount());
+  const { data: unreadCount = 0 } = useUnreadNotificationCount();
   const name = user?.fullName?.split(' ')[0] ?? 'Guest';
-
-  const currentTicket = dataAccess.getPrimaryActiveTicket(tickets);
-  const progressSequence = currentTicket
-    ? dataAccess.getProgressSequence(currentTicket.id)
-    : [];
+  const { data: currentTicket } = useMyActiveTicket();
+  const { data: progress } = useTicketProgress(currentTicket?.id);
+  useMyTicketsRealtime(currentTicket?.queueId);
+  const progressSequence = progress?.timeline.map((t) => t.ticketNumber) ?? [];
 
   const openDiscover = () => {
     pushJoinQueueList();
   };
 
-  const openOrganization = (nearbyServiceId: string) => {
-    const orgId = dataAccess.NEARBY_SERVICE_TO_ORG[nearbyServiceId];
-    if (!orgId) {
-      openDiscover();
-      return;
-    }
-    selectOrganization(orgId);
-    pushOrganization(orgId);
+  const openOrganization = (_nearbyServiceId: string) => {
+    openDiscover();
   };
 
   const onQuickAction = (actionId: string) => {

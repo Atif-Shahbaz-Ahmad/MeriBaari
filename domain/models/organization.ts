@@ -1,30 +1,42 @@
-import type {
-  AvailabilityStatus,
-  OrganizationCategory,
-} from '@/types/organization';
+import type { OrganizationCategoryId } from '@/constants/organization-categories';
+import type { AvailabilityStatus } from '@/types/organization';
 
 /** Organization operational status — maps to `organizations.status`. */
 export type OrganizationStatus = 'active' | 'inactive' | 'suspended';
 
+/** Canonical organization category — maps to `organizations.category`. */
+export type OrganizationCategory = OrganizationCategoryId;
+
 /**
  * Canonical organization entity — maps to `organizations` table.
- * Extra catalog fields (distance, rating, flags) support discovery UI
- * and will be computed or stored as metadata when Supabase is wired.
+ * Catalog/discovery fields (distance, rating, flags) default until
+ * queues and reviews are wired.
  */
 export interface Organization {
   id: string;
+  ownerId: string | null;
   name: string;
-  logo: string | null;
   description: string;
+  /** Public logo URL (never a local device path). */
+  logoUrl: string | null;
+  /** Alias of logoUrl for older UI that still reads `logo`. */
+  logo: string | null;
   category: OrganizationCategory;
-  address: string;
   phone: string | null;
   email: string | null;
-  workingHours: string;
-  status: OrganizationStatus;
-
-  /** App catalog / discovery fields (not all are first-class DB columns yet). */
+  address: string;
   city: string;
+  latitude: number | null;
+  longitude: number | null;
+  /** Average wait in minutes — maps to `average_wait_time`. */
+  averageWaitTime: number;
+  isActive: boolean;
+  status: OrganizationStatus;
+  workingHours: string;
+  createdAt: string;
+  updatedAt: string;
+
+  /** App catalog / discovery fields (defaults until live metrics exist). */
   averageWaitMinutes: number;
   activeQueues: number;
   distanceKm: number;
@@ -61,4 +73,4 @@ export interface OrganizationMember {
   createdAt?: string;
 }
 
-export type { AvailabilityStatus, OrganizationCategory };
+export type { AvailabilityStatus };

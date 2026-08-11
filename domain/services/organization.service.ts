@@ -1,21 +1,126 @@
-import type { OrganizationRepository } from '@/domain/repositories';
-import type { OrganizationSearchParams } from '@/domain/repositories';
+import type {
+  OrganizationCreateInput,
+  OrganizationRepository,
+  OrganizationSearchParams,
+  OrganizationUpdateInput,
+} from '@/domain/repositories';
 import type { OrganizationCategory } from '@/types/organization';
+import { OrganizationError } from '@/domain/errors/organization-error';
 
 export class OrganizationService {
   constructor(private readonly organizations: OrganizationRepository) {}
 
   getById(id: string) {
-    return this.organizations.getById(id);
+    return this.organizations.getOrganizationById(id);
   }
 
-  list() {
-    return this.organizations.list();
+  getOrganizationById(id: string) {
+    return this.organizations.getOrganizationById(id);
+  }
+
+  list(params?: OrganizationSearchParams) {
+    return this.organizations.getOrganizations(params);
+  }
+
+  getOrganizations(params?: OrganizationSearchParams) {
+    return this.organizations.getOrganizations(params);
   }
 
   search(query: string, category: OrganizationCategory | 'all' = 'all') {
-    const params: OrganizationSearchParams = { query, category };
+    const params: OrganizationSearchParams = {
+      query,
+      category,
+      activeOnly: true,
+    };
     return this.organizations.search(params);
+  }
+
+  getMyOrganization() {
+    return this.organizations.getMyOrganization();
+  }
+
+  async createOrganization(data: OrganizationCreateInput) {
+    const name = data.name.trim();
+    if (!name) {
+      throw new OrganizationError('invalid_data', 'Organization name is required.');
+    }
+    if (!data.category) {
+      throw new OrganizationError('invalid_data', 'Category is required.');
+    }
+
+    const existing = await this.organizations.getMyOrganization();
+    if (existing) {
+      throw new OrganizationError(
+        'duplicate',
+        'You already have an organization. Edit your existing one instead.',
+      );
+    }
+
+    return this.organizations.createOrganization({
+      ...data,
+      name,
+      description: data.description?.trim() ?? '',
+      address: data.address?.trim() ?? '',
+      city: data.city?.trim() ?? '',
+      phone: data.phone?.trim() || null,
+      email: data.email?.trim() || null,
+      logoUrl: data.logoUrl ?? null,
+    });
+  }
+
+  async updateOrganization(id: string, data: OrganizationUpdateInput) {
+    if (!id) {
+      throw new OrganizationError('invalid_data', 'Organization id is required.');
+    }
+
+    const mine = await this.organizations.getMyOrganization();
+    if (!mine || mine.id !== id) {
+      throw new OrganizationError(
+        'permission_denied',
+        'You can only update your own organization.',
+      );
+    }
+
+    return this.organizations.updateOrganization(id, data);
+  }
+
+  async deactivateOrganization(id: string) {
+    const mine = await this.organizations.getMyOrganization();
+    if (!mine || mine.id !== id) {
+      throw new OrganizationError(
+        'permission_denied',
+        'You can only deactivate your own organization.',
+      );
+    }
+    return this.organizations.deactivateOrganization(id);
+  }
+
+  async activateOrganization(id: string) {
+    const mine = await this.organizations.getMyOrganization();
+    if (!mine || mine.id !== id) {
+      throw new OrganizationError(
+        'permission_denied',
+        'You can only activate your own organization.',
+      );
+    }
+    return this.organizations.activateOrganization(id);
+  }
+
+  async deleteOrganization(id: string) {
+    const mine = await this.organizations.getMyOrganization();
+    if (!mine || mine.id !== id) {
+      throw new OrganizationError(
+        'permission_denied',
+        'You can only delete your own organization.',
+      );
+    }
+    return this.organizations.deleteOrganization(id);
+  }
+
+  /** True when the current user owns the given organization. */
+  async validateOwnership(organizationId: string): Promise<boolean> {
+    const mine = await this.organizations.getMyOrganization();
+    return Boolean(mine && mine.id === organizationId);
   }
 
   listMembers(organizationId: string) {

@@ -3,8 +3,8 @@ import {
   BellRing,
   CheckCircle2,
   Clock3,
-  MapPin,
-  Megaphone,
+  PauseCircle,
+  PlayCircle,
   Ticket,
   Timer,
   XCircle,
@@ -27,26 +27,72 @@ const TYPE_META: Record<
   NotificationType,
   { Icon: typeof BellRing; color: string; bg: string; categoryLabel: string }
 > = {
-  turn_soon: { Icon: Timer, color: Colors.accent, bg: Colors.accent50, categoryLabel: 'Reminder' },
-  turn_next: { Icon: BellRing, color: Colors.primary, bg: Colors.primary50, categoryLabel: 'Queue' },
-  queue_delayed: { Icon: Clock3, color: Colors.accent, bg: Colors.accent50, categoryLabel: 'Queue' },
-  queue_completed: {
-    Icon: CheckCircle2,
-    color: Colors.secondary,
-    bg: Colors.secondary50,
-    categoryLabel: 'Queue',
-  },
-  counter_changed: {
+  QUEUE_JOINED: {
     Icon: Ticket,
     color: Colors.primary,
     bg: Colors.primary50,
     categoryLabel: 'Queue',
   },
-  queue_cancelled: { Icon: XCircle, color: Colors.error, bg: Colors.error50, categoryLabel: 'System' },
-  org_nearby: { Icon: MapPin, color: Colors.secondary, bg: Colors.secondary50, categoryLabel: 'Promo' },
-  joined: { Icon: Ticket, color: Colors.primary, bg: Colors.primary50, categoryLabel: 'Queue' },
-  reminder: { Icon: BellRing, color: Colors.accent, bg: Colors.accent50, categoryLabel: 'Reminder' },
-  promo: { Icon: Megaphone, color: Colors.primary, bg: Colors.primary50, categoryLabel: 'Promo' },
+  TICKET_CALLED: {
+    Icon: BellRing,
+    color: Colors.primary,
+    bg: Colors.primary50,
+    categoryLabel: 'Queue',
+  },
+  TICKET_SERVING: {
+    Icon: Timer,
+    color: Colors.accent,
+    bg: Colors.accent50,
+    categoryLabel: 'Queue',
+  },
+  TICKET_SERVED: {
+    Icon: CheckCircle2,
+    color: Colors.secondary,
+    bg: Colors.secondary50,
+    categoryLabel: 'Queue',
+  },
+  TICKET_SKIPPED: {
+    Icon: XCircle,
+    color: Colors.error,
+    bg: Colors.error50,
+    categoryLabel: 'Queue',
+  },
+  QUEUE_PAUSED: {
+    Icon: PauseCircle,
+    color: Colors.accent,
+    bg: Colors.accent50,
+    categoryLabel: 'Queue',
+  },
+  QUEUE_RESUMED: {
+    Icon: PlayCircle,
+    color: Colors.secondary,
+    bg: Colors.secondary50,
+    categoryLabel: 'Queue',
+  },
+  QUEUE_CLOSED: {
+    Icon: XCircle,
+    color: Colors.error,
+    bg: Colors.error50,
+    categoryLabel: 'Queue',
+  },
+  QUEUE_TURN_APPROACHING: {
+    Icon: Timer,
+    color: Colors.accent,
+    bg: Colors.accent50,
+    categoryLabel: 'Reminder',
+  },
+  QUEUE_CANCELLED: {
+    Icon: XCircle,
+    color: Colors.error,
+    bg: Colors.error50,
+    categoryLabel: 'System',
+  },
+  SYSTEM: {
+    Icon: BellRing,
+    color: Colors.primary,
+    bg: Colors.primary50,
+    categoryLabel: 'System',
+  },
 };
 
 interface NotificationCardProps {
@@ -66,8 +112,10 @@ export function NotificationCard({
 }: NotificationCardProps) {
   const theme = useTheme();
   const scale = useSharedValue(1);
-  const meta = TYPE_META[notification.type];
+  const meta = TYPE_META[notification.type] ?? TYPE_META.SYSTEM;
   const Icon = meta.Icon;
+  const isRead = notification.isRead ?? notification.read;
+  const body = notification.message ?? notification.description;
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -79,8 +127,8 @@ export function NotificationCard({
         onPress={onPress}
         onLongPress={onLongPress}
         accessibilityRole="button"
-        accessibilityLabel={`${notification.read ? '' : 'Unread. '}${notification.title}. ${notification.description}`}
-        accessibilityHint="Double tap to mark as read. Long press for more options."
+        accessibilityLabel={`${isRead ? '' : 'Unread. '}${notification.title}. ${body}`}
+        accessibilityHint="Double tap to open. Long press for more options."
         onPressIn={() => {
           scale.value = withSpring(0.98);
         }}
@@ -93,11 +141,11 @@ export function NotificationCard({
           animatedStyle,
           {
             backgroundColor: theme.card,
-            borderColor: notification.read ? theme.border : Colors.primary100,
+            borderColor: isRead ? theme.border : Colors.primary100,
           },
         ]}
       >
-        {!notification.read ? <View style={styles.unreadDot} accessibilityElementsHidden /> : null}
+        {!isRead ? <View style={styles.unreadDot} accessibilityElementsHidden /> : null}
         <View style={[styles.icon, { backgroundColor: meta.bg }]}>
           <Icon size={18} color={meta.color} strokeWidth={2} />
         </View>
@@ -108,7 +156,7 @@ export function NotificationCard({
                 styles.title,
                 {
                   color: theme.text,
-                  fontFamily: notification.read
+                  fontFamily: isRead
                     ? Typography.body.fontFamily
                     : Typography.bodyMedium.fontFamily,
                 },
@@ -122,7 +170,7 @@ export function NotificationCard({
             </Text>
           </View>
           <Text style={[styles.description, { color: theme.textSecondary }]} numberOfLines={3}>
-            {notification.description}
+            {body}
           </Text>
           <Text style={[styles.category, { color: meta.color }]}>{meta.categoryLabel}</Text>
         </View>

@@ -1,9 +1,11 @@
+import { AuthError } from '@/domain/errors/auth-error';
 import type { Profile } from '@/domain/models';
 import type { ProfileRepository } from '@/domain/repositories';
 import type {
   ProfileEnsureInput,
   ProfileUpdateInput,
 } from '@/domain/repositories';
+import { isUserRole, normalizeRole } from '@/features/auth/roles';
 import type { AuthSession } from '@/types/auth';
 import type { UserRole } from '@/types/auth';
 
@@ -15,7 +17,7 @@ export interface AvatarPlaceholder {
 }
 
 /**
- * Profile use-cases: fetch, update, refresh, avatar placeholder.
+ * Profile use-cases: fetch, update, refresh, role validation, avatar placeholder.
  * UI never talks to Supabase — only through this service + repository.
  */
 export class ProfileService {
@@ -25,8 +27,18 @@ export class ProfileService {
     return this.profiles.getById(id);
   }
 
+  /** Alias — Prompt contract naming. */
+  getProfileById(id: string) {
+    return this.getById(id);
+  }
+
   getCurrent() {
     return this.profiles.getCurrent();
+  }
+
+  /** Alias — Prompt contract naming. */
+  getCurrentProfile() {
+    return this.getCurrent();
   }
 
   /** Re-fetch the signed-in user's profile from the repository. */
@@ -35,21 +47,54 @@ export class ProfileService {
   }
 
   ensure(userId: string, seed?: ProfileEnsureInput) {
-    return this.profiles.ensure(userId, seed);
+    const role = this.requireAppRoleOrNull(seed?.role);
+    return this.profiles.ensure(userId, { ...seed, role });
+  }
+
+  /** Alias — create if missing (idempotent). */
+  createProfile(userId: string, seed?: ProfileEnsureInput) {
+    return this.ensure(userId, seed);
   }
 
   update(id: string, input: ProfileUpdateInput) {
-    return this.profiles.update(id, input);
+    const patch = this.sanitizeUpdate(input);
+    return this.profiles.update(id, patch);
+  }
+
+  /** Alias — Prompt contract naming. */
+  updateProfile(id: string, input: ProfileUpdateInput) {
+    return this.update(id, input);
   }
 
   setRole(id: string, role: UserRole) {
+    if (!isUserRole(role)) {
+      throw new AuthError(
+        'unauthorized',
+        'Invalid role. Only customer or business is allowed.',
+      );
+    }
     return this.profiles.setRole(id, role);
   }
 
   /**
-   * Avatar display helper for current / future profile editing screens.
-   * Returns initials-friendly name + optional image URI.
+   * Require a valid app role on a loaded profile.
+   * Returns the normalized role or throws.
    */
+  requireValidRole(profile: Profile | null | undefined): UserRole {
+    const role = normalizeRole(profile?.role);
+    if (!role) {
+      throw new AuthError(
+        'unauthorized',
+        'Your profile is missing a valid role. Please choose Customer or Business.',
+      );
+    }
+    return role;
+  }
+
+  hasValidRole(profile: Profile | null | undefined): boolean {
+    return normalizeRole(profile?.role) !== null;
+  }
+
   getAvatarPlaceholder(
     profile: Profile | null | undefined,
     fallbackName?: string | null,
@@ -60,7 +105,7 @@ export class ProfileService {
     };
   }
 
-  /** Merge profile fields onto an auth session user (role from profiles wins). */
+  /** Merge profile fields onto an auth session user (`profiles.role` wins). */
   mergeSession(session: AuthSession, profile: Profile | null): AuthSession {
     if (!profile) return session;
     return {
@@ -71,8 +116,35 @@ export class ProfileService {
         phone: profile.phone ?? session.user.phone,
         email: profile.email ?? session.user.email,
         avatarUrl: profile.avatarUrl ?? session.user.avatarUrl,
-        role: profile.role ?? session.user.role ?? null,
+        role: normalizeRole(profile.role),
       },
     };
+  }
+
+  private sanitizeUpdate(input: ProfileUpdateInput): ProfileUpdateInput {
+    if (input.role === undefined) return input;
+    if (input.role === null) {
+      return { ...input, role: null };
+    }
+    if (!isUserRole(input.role)) {
+      throw new AuthError(
+        'unauthorized',
+        'Invalid role. Only customer or business is allowed.',
+      );
+    }
+    return input;
+  }
+
+  private requireAppRoleOrNull(
+    role: UserRole | null | undefined,
+  ): UserRole | null {
+    if (role == null) return null;
+    if (!isUserRole(role)) {
+      throw new AuthError(
+        'unauthorized',
+        'Invalid role. Only customer or business is allowed.',
+      );
+    }
+    return role;
   }
 }

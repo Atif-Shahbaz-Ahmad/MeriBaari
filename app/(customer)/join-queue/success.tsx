@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { CheckCircle2, Clock3, Ticket } from 'lucide-react-native';
@@ -7,24 +8,33 @@ import { PrimaryButton } from '@/components/buttons/PrimaryButton';
 import { SecondaryButton } from '@/components/buttons/PrimaryButton';
 import { Screen } from '@/components/layout/Screen';
 import { Card } from '@/components/ui/Card';
+import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { AuthHref } from '@/features/auth/navigation';
+import { useRequestPushPermissionAfterJoin } from '@/features/notifications/hooks/use-push-notifications';
+import { useTicket } from '@/features/queue/hooks/use-queue-queries';
+import { useTicketRealtime } from '@/features/queue/hooks/use-queue-realtime';
 import { replaceTicketDetail } from '@/features/tickets/navigation';
 import { useTheme } from '@/hooks/use-theme';
 import { useJoinQueueStore } from '@/store/join-queue-store';
-import { useTicketStore } from '@/store/ticket-store';
+import { useLastJoinedTicketStore } from '@/store/last-joined-ticket-store';
 import { formatWaitTime } from '@/utils/formatting';
 
 export default function JoinQueueSuccessScreen() {
   const theme = useTheme();
   const reset = useJoinQueueStore((s) => s.reset);
-  const lastJoinedTicketId = useTicketStore((s) => s.lastJoinedTicketId);
-  const ticket = useTicketStore((s) =>
-    s.lastJoinedTicketId ? s.tickets.find((t) => t.id === s.lastJoinedTicketId) : undefined,
-  );
-  const clearLastJoined = useTicketStore((s) => s.clearLastJoined);
+  const lastJoinedTicketId = useLastJoinedTicketStore((s) => s.lastJoinedTicketId);
+  const clearLastJoined = useLastJoinedTicketStore((s) => s.clearLastJoined);
+  const { data: ticket, isLoading } = useTicket(lastJoinedTicketId ?? undefined);
+  useTicketRealtime(lastJoinedTicketId ?? undefined, ticket?.queueId);
+  const requestPushAfterJoin = useRequestPushPermissionAfterJoin();
+
+  useEffect(() => {
+    // Natural UX moment for queue alerts — once per install, never on welcome.
+    void requestPushAfterJoin();
+  }, [requestPushAfterJoin]);
 
   const goHome = () => {
     reset();
@@ -55,7 +65,9 @@ export default function JoinQueueSuccessScreen() {
           </Text>
         </Animated.View>
 
-        {ticket ? (
+        {isLoading ? (
+          <LoadingSkeleton count={1} variant="ticket" />
+        ) : ticket ? (
           <Animated.View entering={FadeInDown.delay(160).duration(400)} style={styles.cardWrap}>
             <Card style={styles.ticketCard}>
               <View style={[styles.ticketBadge, { backgroundColor: Colors.secondary50 }]}>

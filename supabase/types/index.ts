@@ -10,6 +10,8 @@ export type {
   QueueEntryRow,
   TicketRow,
   NotificationRow,
+  PushTokenRow,
+  NotificationPreferencesRow,
   BusinessSettingsRow,
   UserRole,
   OrganizationMemberRole,

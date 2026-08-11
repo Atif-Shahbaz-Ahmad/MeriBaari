@@ -23,20 +23,36 @@ import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { pushQueueActivity } from '@/features/business/navigation';
+import {
+  useBusinessQueueDetails,
+} from '@/features/queue/hooks/use-queue-queries';
+import { useQueueRealtime } from '@/features/queue/hooks/use-queue-realtime';
+import { getContainer } from '@/data';
 import { useTheme } from '@/hooks/use-theme';
-import { dataAccess } from '@/data';
-import { useBusinessQueueStore } from '@/store/business-queue-store';
+import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
+import { useQuery } from '@tanstack/react-query';
+import { queueQueryKeys } from '@/features/queue/query-keys';
 import { formatWaitTime } from '@/utils/formatting';
 
 export default function QueueDetailsScreen() {
   const theme = useTheme();
   const { queueId } = useLocalSearchParams<{ queueId: string }>();
-  const queues = useBusinessQueueStore((s) => s.queues);
-  const activity = useBusinessQueueStore((s) => s.activity);
+  useQueueRealtime(queueId);
+  const { data: queue, isLoading: queueLoading } = useQuery({
+    queryKey: [...queueQueryKeys.detail(queueId ?? ''), 'business'] as const,
+    queryFn: () => getContainer().queueService.getBusinessQueue(queueId!),
+    enabled: Boolean(queueId),
+  });
+  const { data: details, isLoading: detailsLoading } =
+    useBusinessQueueDetails(queueId);
 
-  const queue = queues.find((q) => q.id === queueId);
-  const details = queueId ? dataAccess.getBusinessQueueDetails(queueId) : undefined;
-  const timeline = activity.filter((item) => item.queueId === queueId).slice(0, 8);
+  if (queueLoading || detailsLoading) {
+    return (
+      <Screen>
+        <LoadingSkeleton count={3} variant="detail" />
+      </Screen>
+    );
+  }
 
   if (!queue || !details) {
     return (
@@ -46,6 +62,8 @@ export default function QueueDetailsScreen() {
       </Screen>
     );
   }
+
+  const timeline: import('@/types').BusinessActivityItem[] = [];
 
   return (
     <Screen padded={false}>
