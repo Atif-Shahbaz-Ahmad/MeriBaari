@@ -15,6 +15,7 @@ import type {
 } from '@/domain/models';
 import type { QueueStatus as DomainQueueStatus } from '@/domain/models/queue';
 import type { QueueEntryStatus } from '@/domain/models/queue-entry';
+import type { SubscriptionStatus } from '@/domain/models/organization';
 import { DEPARTMENT_ICON_IDS } from '@/domain/models/department';
 import {
   getOrganizationCategoryIcon,
@@ -83,6 +84,22 @@ export function mapProfileRow(row: ProfileRow): Profile {
   };
 }
 
+function normalizeSubscriptionStatus(
+  value: string | null | undefined,
+  isActive: boolean,
+): SubscriptionStatus {
+  if (
+    value === 'draft' ||
+    value === 'pending_payment' ||
+    value === 'pending_approval' ||
+    value === 'active' ||
+    value === 'rejected'
+  ) {
+    return value;
+  }
+  return isActive ? 'active' : 'draft';
+}
+
 export function mergeSessionWithProfile(
   session: AuthSession,
   profile: Profile | null,
@@ -95,7 +112,7 @@ export function mergeSessionWithProfile(
       fullName: profile.fullName ?? session.user.fullName,
       phone: profile.phone ?? session.user.phone,
       email: profile.email ?? session.user.email,
-      avatarUrl: profile.avatarUrl ?? session.user.avatarUrl,
+      avatarUrl: profile.avatarUrl,
       role: profile.role ?? session.user.role ?? null,
     },
   };
@@ -119,11 +136,25 @@ export function mapOrganizationRow(row: OrganizationRow): Organization {
     email: row.email,
     address: row.address ?? '',
     city: row.city ?? '',
-    latitude: row.latitude,
-    longitude: row.longitude,
+    latitude:
+      row.latitude == null || Number.isNaN(Number(row.latitude))
+        ? null
+        : Number(row.latitude),
+    longitude:
+      row.longitude == null || Number.isNaN(Number(row.longitude))
+        ? null
+        : Number(row.longitude),
     averageWaitTime: averageWait,
     isActive,
     status: row.status,
+    subscriptionStatus: normalizeSubscriptionStatus(row.subscription_status, isActive),
+    approvedAt: row.approved_at ?? null,
+    approvedBy: row.approved_by ?? null,
+    subscriptionSubmittedAt: row.subscription_submitted_at ?? null,
+    paymentRejectionReason: row.payment_rejection_reason ?? null,
+    adminHidden: row.admin_hidden === true,
+    adminHiddenReason: row.admin_hidden_reason ?? null,
+    adminHiddenAt: row.admin_hidden_at ?? null,
     workingHours: row.working_hours ?? '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -131,8 +162,8 @@ export function mapOrganizationRow(row: OrganizationRow): Organization {
     averageWaitMinutes: averageWait,
     activeQueues: 0,
     distanceKm: 0,
-    rating: 0,
-    reviewCount: 0,
+    rating: Number(row.rating ?? 0),
+    reviewCount: Number(row.review_count ?? 0),
     currentVisitors: 0,
     averageServiceMinutes: 0,
     todaysVisitors: 0,

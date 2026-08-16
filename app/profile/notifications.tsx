@@ -201,10 +201,10 @@ export default function NotificationPreferencesScreen() {
             <View
               style={[
                 styles.hint,
-                { backgroundColor: Colors.accent50, borderColor: Colors.accent },
+                { backgroundColor: theme.tints.accent.bg, borderColor: theme.tints.accent.border },
               ]}
             >
-              <Text style={[styles.hintTitle, { color: '#B45309' }]}>
+              <Text style={[styles.hintTitle, { color: theme.tints.accent.fg }]}>
                 Enable in device settings
               </Text>
               <Text style={[styles.hintBody, { color: theme.textSecondary }]}>

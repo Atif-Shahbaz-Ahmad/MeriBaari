@@ -49,6 +49,7 @@ export {
   QueueService,
   TicketService,
   NotificationService,
+  SubscriptionService,
   BusinessService,
   CatalogService,
   AuthService,
@@ -65,7 +66,6 @@ export type { StructureErrorCode } from './errors/structure-error';
 export {
   UnimplementedRealtimeService,
   UnimplementedPushNotificationService,
-  UnimplementedQrValidationService,
   UnimplementedFileStorageService,
 } from './future';
 export type {
@@ -74,7 +74,6 @@ export type {
   RealtimeChangeEvent,
   RealtimeConnectionStatus,
   PushNotificationService,
-  QrValidationService,
   FileStorageService,
   Unsubscribe as FutureUnsubscribe,
 } from './future';

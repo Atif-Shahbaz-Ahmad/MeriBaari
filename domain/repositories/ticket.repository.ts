@@ -22,6 +22,12 @@ export interface TicketUpdateInput {
   actualWaitMinutes?: number;
 }
 
+/** Pagination for history list queries (customer + org owner). */
+export interface TicketHistoryListParams {
+  limit?: number;
+  offset?: number;
+}
+
 /**
  * Ticket repository exposes the denormalized `QueueTicket` view used by UI.
  */
@@ -35,6 +41,13 @@ export interface TicketRepository {
   listCompleted(tickets?: QueueTicket[]): Promise<QueueTicket[]>;
   listCancelled(tickets?: QueueTicket[]): Promise<QueueTicket[]>;
   listHistory(tickets?: QueueTicket[]): Promise<QueueTicket[]>;
+  /** Customer history from DB (pagination-friendly). */
+  listMyHistory(params?: TicketHistoryListParams): Promise<QueueTicket[]>;
+  /** Org staff history for an organization (pagination-friendly). */
+  listOrganizationHistory(
+    organizationId: string,
+    params?: TicketHistoryListParams,
+  ): Promise<QueueTicket[]>;
   getPrimaryActive(tickets?: QueueTicket[]): Promise<QueueTicket | null>;
   getJoinPreview(serviceId: string): Promise<QueueJoinPreview>;
   joinQueue(input: JoinQueueInput): Promise<QueueTicket>;
@@ -42,6 +55,7 @@ export interface TicketRepository {
   cancel(id: string): Promise<QueueTicket>;
   cancelQueueEntry(ticketId: string): Promise<QueueTicket>;
   getStatistics(tickets?: QueueTicket[]): Promise<TicketStatistics>;
+  countOrganizationServedToday(organizationId: string): Promise<number>;
   getQrTicket(ticketId: string): Promise<Ticket | null>;
   subscribe(
     userId: string,

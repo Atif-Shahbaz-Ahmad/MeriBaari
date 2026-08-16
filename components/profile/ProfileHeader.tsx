@@ -6,6 +6,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { useTranslation } from '@/hooks/use-translation';
 import { formatTicketDate } from '@/utils/formatting';
 
 interface ProfileHeaderProps {
@@ -24,6 +25,10 @@ export function ProfileHeader({
   membershipSince,
 }: ProfileHeaderProps) {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
+  const sinceLabel = membershipSince
+    ? t('profile.memberSince', { date: formatTicketDate(membershipSince) })
+    : null;
 
   return (
     <Animated.View
@@ -35,13 +40,13 @@ export function ProfileHeader({
         <Avatar name={name} uri={avatarUrl} size={88} style={styles.avatar} />
       </Animated.View>
       <Text style={styles.name} accessibilityRole="text">
-        {name ?? 'Guest User'}
+        {name ?? t('common.guest')}
       </Text>
       {email ? <Text style={styles.meta}>{email}</Text> : null}
       {phone ? <Text style={styles.meta}>{phone}</Text> : null}
-      {membershipSince ? (
-        <View style={styles.badge} accessibilityLabel={`Member since ${formatTicketDate(membershipSince)}`}>
-          <Text style={styles.badgeText}>Member since {formatTicketDate(membershipSince)}</Text>
+      {sinceLabel ? (
+        <View style={styles.badge} accessibilityLabel={sinceLabel}>
+          <Text style={styles.badgeText}>{sinceLabel}</Text>
         </View>
       ) : null}
     </Animated.View>

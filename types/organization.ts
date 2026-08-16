@@ -53,6 +53,8 @@ export interface Organization {
   popularServiceIds: string[];
 }
 
+import type { DepartmentIcon } from '@/domain/models';
+
 export interface Department {
   id: string;
   organizationId: string;
@@ -61,17 +63,7 @@ export interface Department {
   averageWaitMinutes: number;
   estimatedQueueSize: number;
   availability: AvailabilityStatus;
-  icon:
-    | 'stethoscope'
-    | 'heart'
-    | 'tooth'
-    | 'eye'
-    | 'siren'
-    | 'scan'
-    | 'flask'
-    | 'users'
-    | 'file'
-    | 'car';
+  icon: DepartmentIcon;
   serviceIds: string[];
   isActive?: boolean;
   displayOrder?: number;

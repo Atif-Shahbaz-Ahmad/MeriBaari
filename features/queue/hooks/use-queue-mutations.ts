@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { getContainer } from '@/data';
 import type { JoinQueueInput } from '@/domain/repositories';
+import { notificationQueryKeys } from '@/features/notifications/query-keys';
 import {
   queueQueryKeys,
   ticketQueryKeys,
@@ -36,6 +37,9 @@ export function useJoinQueue() {
       queryClient.setQueryData(ticketQueryKeys.detail(ticket.id), ticket);
       queryClient.setQueryData(ticketQueryKeys.active, ticket);
       invalidateQueueAndTickets(queryClient, ticket.queueId);
+      void queryClient.invalidateQueries({
+        queryKey: notificationQueryKeys.all,
+      });
     },
   });
 }
@@ -49,6 +53,9 @@ export function useCancelQueue() {
     onSuccess: (ticket) => {
       queryClient.setQueryData(ticketQueryKeys.detail(ticket.id), ticket);
       invalidateQueueAndTickets(queryClient, ticket.queueId);
+      void queryClient.invalidateQueries({
+        queryKey: notificationQueryKeys.all,
+      });
     },
   });
 }

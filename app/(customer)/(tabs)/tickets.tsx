@@ -18,12 +18,14 @@ import { useMyTickets } from '@/features/queue/hooks/use-queue-queries';
 import { useMyTicketsRealtime } from '@/features/queue/hooks/use-queue-realtime';
 import { pushTicketDetail, pushTicketHistory } from '@/features/tickets/navigation';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/use-translation';
 import { dataAccess } from '@/data';
 
 type TicketTab = 'active' | 'completed' | 'cancelled';
 
 export default function TicketsScreen() {
   const theme = useTheme();
+  const { t } = useTranslation();
   const { data: tickets = [], isLoading, isError, error, refetch } = useMyTickets();
   useMyTicketsRealtime();
   const [tab, setTab] = useState<TicketTab>('active');
@@ -42,9 +44,17 @@ export default function TicketsScreen() {
     tab === 'active' ? active : tab === 'completed' ? completed : cancelled;
 
   const tabs = [
-    { key: 'active' as const, label: 'Active', count: active.length },
-    { key: 'completed' as const, label: 'Completed', count: completed.length },
-    { key: 'cancelled' as const, label: 'Cancelled', count: cancelled.length },
+    { key: 'active' as const, label: t('tickets.tabActive'), count: active.length },
+    {
+      key: 'completed' as const,
+      label: t('tickets.tabCompleted'),
+      count: completed.length,
+    },
+    {
+      key: 'cancelled' as const,
+      label: t('tickets.tabCancelled'),
+      count: cancelled.length,
+    },
   ];
 
   if (isLoading) {
@@ -59,7 +69,7 @@ export default function TicketsScreen() {
     return (
       <Screen>
         <ErrorState
-          title="Could not load tickets"
+          title={t('tickets.loadError')}
           description={getQueueErrorMessage(error)}
           onRetry={() => void refetch()}
         />
@@ -73,16 +83,16 @@ export default function TicketsScreen() {
         <Animated.View entering={FadeInDown.duration(400)} style={styles.padded}>
           <View style={styles.titleRow}>
             <View style={styles.titleBlock}>
-              <Text style={[styles.title, { color: theme.text }]}>My Tickets</Text>
+              <Text style={[styles.title, { color: theme.text }]}>{t('tickets.title')}</Text>
               <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-                Track active queues and past visits
+                {t('tickets.subtitle')}
               </Text>
             </View>
             <Pressable
               onPress={pushTicketHistory}
-              style={[styles.historyBtn, { backgroundColor: Colors.primary50 }]}
+              style={[styles.historyBtn, { backgroundColor: theme.tints.primary.bg }]}
               accessibilityRole="button"
-              accessibilityLabel="Ticket history"
+              accessibilityLabel={t('tickets.historyA11y')}
             >
               <History size={18} color={Colors.primary} strokeWidth={2} />
             </Pressable>
@@ -99,17 +109,17 @@ export default function TicketsScreen() {
               icon={<Ticket size={28} color={Colors.primary} strokeWidth={1.75} />}
               title={
                 tab === 'active'
-                  ? 'No active tickets'
+                  ? t('tickets.emptyActive')
                   : tab === 'completed'
-                    ? 'No completed tickets'
-                    : 'No cancelled tickets'
+                    ? t('tickets.emptyCompleted')
+                    : t('tickets.emptyCancelled')
               }
               description={
                 tab === 'active'
-                  ? 'Join a queue to get your first MeriBaari ticket.'
-                  : 'Tickets in this category will show up here.'
+                  ? t('tickets.emptyActiveHint')
+                  : t('tickets.emptyCategoryHint')
               }
-              actionLabel={tab === 'active' ? 'Join a queue' : undefined}
+              actionLabel={tab === 'active' ? t('tickets.joinQueue') : undefined}
               onActionPress={tab === 'active' ? pushJoinQueueList : undefined}
             />
           ) : (

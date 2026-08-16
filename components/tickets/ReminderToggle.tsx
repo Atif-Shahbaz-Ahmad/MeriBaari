@@ -60,7 +60,7 @@ export function ReminderToggle({ enabled, onValueChange }: ReminderToggleProps) 
 
       >
 
-        <View style={[styles.icon, { backgroundColor: Colors.primary50 }]}>
+        <View style={[styles.icon, { backgroundColor: theme.tints.primary.bg }]}>
 
           <BellRing size={18} color={Colors.primary} strokeWidth={2} />
 
@@ -84,7 +84,7 @@ export function ReminderToggle({ enabled, onValueChange }: ReminderToggleProps) 
 
           onValueChange={onValueChange}
 
-          trackColor={{ false: theme.border, true: Colors.primary100 }}
+          trackColor={{ false: theme.border, true: theme.tints.primary.bgStrong }}
 
           thumbColor={enabled ? Colors.primary : '#f4f4f5'}
 

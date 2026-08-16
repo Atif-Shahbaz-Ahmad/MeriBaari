@@ -56,6 +56,14 @@ export interface OrganizationRepository {
 
   search(params: OrganizationSearchParams): Promise<Organization[]>;
 
+  /**
+   * Lowest active service price per organization (discover price sort).
+   * Uses existing `services.price` — no new schema.
+   */
+  getStartingPrices(
+    organizationIds: string[],
+  ): Promise<Record<string, number>>;
+
   /** Organization owned by the authenticated business user. */
   getMyOrganization(): Promise<Organization | null>;
 

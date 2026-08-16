@@ -7,11 +7,9 @@ import { Screen } from '@/components/layout/Screen';
 import { Card } from '@/components/ui/Card';
 import { FlowHeader } from '@/components/ui/FlowHeader';
 import { InfoRow } from '@/components/ui/InfoRow';
-import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { useTheme } from '@/hooks/use-theme';
-import { useColorScheme } from '@/hooks/use-theme';
+import { useColorScheme, useTheme } from '@/hooks/use-theme';
 import { dataAccess } from '@/data';
 
 const MOCK_ABOUT = dataAccess.MOCK_ABOUT;
@@ -29,8 +27,10 @@ export default function AboutScreen() {
 
         <Animated.View entering={ZoomIn.delay(80).duration(420)} style={styles.logoBlock}>
           <Logo variant={scheme === 'dark' ? 'dark' : 'light'} size="lg" showTagline />
-          <View style={[styles.versionPill, { backgroundColor: Colors.primary50 }]}>
-            <Text style={styles.versionText}>Version {MOCK_ABOUT.version}</Text>
+          <View style={[styles.versionPill, { backgroundColor: theme.tints.primary.bg }]}>
+            <Text style={[styles.versionText, { color: theme.tints.primary.fg }]}>
+              Version {MOCK_ABOUT.version}
+            </Text>
           </View>
         </Animated.View>
 
@@ -80,15 +80,6 @@ export default function AboutScreen() {
             ))}
           </Card>
         </Animated.View>
-
-        <Animated.View entering={FadeInDown.delay(280).duration(400)} style={styles.padded}>
-          <Card style={styles.block}>
-            <Text style={[styles.heading, { color: theme.text }]}>Social</Text>
-            {MOCK_ABOUT.social.map((item) => (
-              <InfoRow key={item.label} label={item.label} value={item.handle} />
-            ))}
-          </Card>
-        </Animated.View>
       </ScrollView>
     </Screen>
   );
@@ -114,7 +105,6 @@ const styles = StyleSheet.create({
   },
   versionText: {
     ...Typography.small,
-    color: Colors.primary,
   },
   block: {
     gap: Spacing.sm,

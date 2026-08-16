@@ -48,15 +48,15 @@ export class SupabaseAuthRepository implements AuthRepository {
   }
 
   onAuthStateChange(
-    callback: (session: AuthSession | null) => void,
+    callback: (session: AuthSession | null, event?: string) => void,
   ): Unsubscribe {
     const supabase = getSupabase();
     if (!supabase) {
       return () => undefined;
     }
 
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      callback(session ? mapAuthSession(session) : null);
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      callback(session ? mapAuthSession(session) : null, event);
     });
 
     return () => {
@@ -166,7 +166,7 @@ export class SupabaseAuthRepository implements AuthRepository {
         return data.session ? mapAuthSession(data.session) : null;
       }
 
-      // token_hash from custom / confirm links
+      // token_hash from custom / confirm / recovery links
       if (params.token_hash && params.type) {
         const { data, error } = await supabase.auth.verifyOtp({
           token_hash: params.token_hash,
@@ -287,6 +287,16 @@ export class SupabaseAuthRepository implements AuthRepository {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: getAuthRedirectUrl(),
       });
+      if (error) throw error;
+    } catch (e) {
+      throw toAuthError(e);
+    }
+  }
+
+  async updatePassword(password: string): Promise<void> {
+    const supabase = requireSupabase();
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
     } catch (e) {
       throw toAuthError(e);

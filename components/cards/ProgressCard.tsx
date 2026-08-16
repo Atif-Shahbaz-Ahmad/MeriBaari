@@ -42,7 +42,7 @@ export function ProgressCard({
                       : isYou
                         ? Colors.primary
                         : isPast
-                          ? Colors.secondary100
+                          ? theme.tints.secondary.bgStrong
                           : theme.border,
                   },
                 ]}
@@ -77,9 +77,9 @@ export function ProgressCard({
           <Text style={[styles.servingValue, { color: theme.text }]}>{currentServing}</Text>
         </View>
         {counter ? (
-          <View style={[styles.servingBlock, { backgroundColor: Colors.primary50 }]}>
-            <Text style={[styles.servingLabel, { color: Colors.primary }]}>Counter</Text>
-            <Text style={[styles.servingValue, { color: Colors.primary }]}>{counter}</Text>
+          <View style={[styles.servingBlock, { backgroundColor: theme.tints.primary.bg }]}>
+            <Text style={[styles.servingLabel, { color: theme.primary }]}>Counter</Text>
+            <Text style={[styles.servingValue, { color: theme.primary }]}>{counter}</Text>
           </View>
         ) : null}
       </View>

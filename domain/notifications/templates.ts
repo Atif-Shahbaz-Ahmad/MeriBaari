@@ -182,6 +182,21 @@ export function createQueueCancelledNotification(
   };
 }
 
+export function createCustomerJoinedNotification(
+  ctx: NotificationTemplateContext,
+): NotificationTemplate {
+  const ticketId = ctx.ticketId ?? 'unknown';
+  return {
+    type: 'CUSTOMER_JOINED',
+    title: 'New Customer Joined',
+    message: `A new customer has joined your queue at ${orgName(ctx)}.`,
+    eventKey: `CUSTOMER_JOINED:${ticketId}`,
+    ticketId: ctx.ticketId ?? null,
+    queueId: ctx.queueId ?? null,
+    organizationId: ctx.organizationId ?? null,
+  };
+}
+
 export function createSystemNotification(
   title: string,
   message: string,

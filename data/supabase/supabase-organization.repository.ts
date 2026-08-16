@@ -62,35 +62,122 @@ export class SupabaseOrganizationRepository implements OrganizationRepository {
         .order('name', { ascending: true });
 
       if (activeOnly) {
-        builder = builder.eq('is_active', true).eq('status', 'active');
+        builder = builder
+          .eq('is_active', true)
+          .eq('status', 'active')
+          .eq('subscription_status', 'active')
+          .eq('admin_hidden', false);
       }
 
       if (category !== 'all') {
         builder = builder.eq('category', category);
       }
 
-      if (query) {
-        // Filter in memory to avoid brittle PostgREST `or` escaping.
-        const { data, error } = await builder;
-        if (error) throw error;
-        const lower = query.toLowerCase();
-        return (data ?? [])
-          .map((row) => mapOrganizationRow(row as OrganizationRow))
-          .filter(
-            (org) =>
-              org.name.toLowerCase().includes(lower) ||
-              org.description.toLowerCase().includes(lower) ||
-              org.city.toLowerCase().includes(lower) ||
-              org.address.toLowerCase().includes(lower),
-          );
-      }
-
       const { data, error } = await builder;
       if (error) throw error;
-      return (data ?? []).map((row) => mapOrganizationRow(row as OrganizationRow));
+
+      let orgs = (data ?? []).map((row) =>
+        mapOrganizationRow(row as OrganizationRow),
+      );
+
+      if (query) {
+        const lower = query.toLowerCase();
+        const serviceOrgIds = await this.findOrganizationIdsByServiceQuery(query);
+
+        orgs = orgs.filter(
+          (org) =>
+            org.name.toLowerCase().includes(lower) ||
+            org.description.toLowerCase().includes(lower) ||
+            org.city.toLowerCase().includes(lower) ||
+            org.address.toLowerCase().includes(lower) ||
+            serviceOrgIds.has(org.id),
+        );
+      }
+
+      return orgs;
     } catch (e) {
       throw toOrganizationError(e);
     }
+  }
+
+  /**
+   * Match active services by name/description → organization ids
+   * (via departments), without inventing new schema.
+   */
+  private async findOrganizationIdsByServiceQuery(
+    query: string,
+  ): Promise<Set<string>> {
+    const supabase = requireSupabase();
+    const lower = query.toLowerCase();
+    const ids = new Set<string>();
+
+    try {
+      const { data, error } = await supabase
+        .from('services')
+        .select('name, description, is_active, status, departments!inner(organization_id)')
+        .eq('is_active', true)
+        .eq('status', 'active');
+      if (error) throw error;
+
+      for (const row of data ?? []) {
+        const name = String(row.name ?? '').toLowerCase();
+        const description = String(row.description ?? '').toLowerCase();
+        if (!name.includes(lower) && !description.includes(lower)) continue;
+        const dept = row.departments as
+          | { organization_id: string }
+          | { organization_id: string }[]
+          | null;
+        const orgId = Array.isArray(dept)
+          ? dept[0]?.organization_id
+          : dept?.organization_id;
+        if (orgId) ids.add(orgId);
+      }
+    } catch {
+      // Service match is best-effort; org text search still works.
+    }
+
+    return ids;
+  }
+
+  /** Min active service price per organization (for discover price sort). */
+  async getStartingPrices(
+    organizationIds: string[],
+  ): Promise<Record<string, number>> {
+    if (organizationIds.length === 0) return {};
+    const supabase = requireSupabase();
+    const result: Record<string, number> = {};
+
+    try {
+      const { data, error } = await supabase
+        .from('services')
+        .select('price, is_active, status, departments!inner(organization_id)')
+        .eq('is_active', true)
+        .eq('status', 'active')
+        .not('price', 'is', null);
+      if (error) throw error;
+
+      const wanted = new Set(organizationIds);
+      for (const row of data ?? []) {
+        const dept = row.departments as
+          | { organization_id: string }
+          | { organization_id: string }[]
+          | null;
+        const orgId = Array.isArray(dept)
+          ? dept[0]?.organization_id
+          : dept?.organization_id;
+        if (!orgId || !wanted.has(orgId)) continue;
+        const price = typeof row.price === 'number' ? row.price : null;
+        if (price == null) continue;
+        const current = result[orgId];
+        if (current == null || price < current) {
+          result[orgId] = price;
+        }
+      }
+    } catch {
+      return result;
+    }
+
+    return result;
   }
 
   async getMyOrganization(): Promise<Organization | null> {
@@ -140,8 +227,9 @@ export class SupabaseOrganizationRepository implements OrganizationRepository {
           latitude: input.latitude ?? null,
           longitude: input.longitude ?? null,
           working_hours: input.workingHours?.trim() ?? '',
-          is_active: true,
-          status: 'active',
+          is_active: false,
+          status: 'inactive',
+          subscription_status: 'draft',
         })
         .select('*')
         .single();

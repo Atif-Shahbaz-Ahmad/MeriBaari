@@ -6,6 +6,7 @@ import type { ProfileUpdateInput } from '@/domain/repositories';
 import { normalizeRole } from '@/features/auth/roles';
 import { profileQueryKeys } from '@/features/profile/query-keys';
 import { getContainer } from '@/data';
+import { isPasswordRecoveryUrl } from '@/lib/auth-redirect';
 import { queryClient } from '@/lib/query-client';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import type { AuthSession, OtpChannel, UserRole } from '@/types';
@@ -23,6 +24,8 @@ interface AuthState {
   isProfileLoading: boolean;
   /** Session exists but profiles row could not be loaded. */
   profileLoadFailed: boolean;
+  /** User opened a password-recovery deep link and must set a new password. */
+  passwordRecoveryPending: boolean;
   error: string | null;
   needsEmailVerification: boolean;
   pendingVerificationEmail: string | null;
@@ -52,11 +55,15 @@ interface AuthState {
   ) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
+  clearPasswordRecovery: () => void;
   resendSignupEmail: (email?: string) => Promise<void>;
   clearPendingVerification: () => void;
   refreshSession: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   updateProfile: (input: ProfileUpdateInput) => Promise<void>;
+  uploadAvatar: (localUri: string) => Promise<void>;
+  removeAvatar: () => Promise<void>;
   /** Sync a profile fetched via React Query into auth state. */
   applyProfile: (profile: Profile) => void;
   signInWithDemo: () => Promise<void>;
@@ -91,7 +98,7 @@ function applyAuthenticated(
       fullName: profile.fullName ?? session.user.fullName,
       phone: profile.phone ?? session.user.phone,
       email: profile.email ?? session.user.email,
-      avatarUrl: profile.avatarUrl ?? session.user.avatarUrl,
+      avatarUrl: profile.avatarUrl,
       role,
     },
   };
@@ -118,6 +125,7 @@ function clearAuth(): Pick<
   | 'needsEmailVerification'
   | 'pendingVerificationEmail'
   | 'profileLoadFailed'
+  | 'passwordRecoveryPending'
 > {
   return {
     session: null,
@@ -128,6 +136,7 @@ function clearAuth(): Pick<
     needsEmailVerification: false,
     pendingVerificationEmail: null,
     profileLoadFailed: false,
+    passwordRecoveryPending: false,
   };
 }
 
@@ -148,6 +157,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isRestoringSession: false,
   isProfileLoading: false,
   profileLoadFailed: false,
+  passwordRecoveryPending: false,
   error: null,
   needsEmailVerification: false,
   pendingVerificationEmail: null,
@@ -155,6 +165,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   clearError: () => set({ error: null }),
   clearPendingVerification: () =>
     set({ needsEmailVerification: false, pendingVerificationEmail: null }),
+  clearPasswordRecovery: () => set({ passwordRecoveryPending: false }),
 
   applyProfile: (profile) => {
     const session = get().session;
@@ -163,21 +174,40 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   handleAuthUrl: async (url) => {
-    if (get().session && get().profile) return true;
+    const isRecovery = isPasswordRecoveryUrl(url);
 
-    set({ isLoading: true, isProfileLoading: true, error: null });
+    // Already fully signed in and not in a recovery flow — ignore.
+    if (get().session && get().profile && !isRecovery && !get().passwordRecoveryPending) {
+      return true;
+    }
+
+    set({
+      isLoading: true,
+      isProfileLoading: true,
+      error: null,
+      ...(isRecovery ? { passwordRecoveryPending: true } : {}),
+    });
     try {
       const ctx = await getContainer().authService.establishSessionFromUrl(url);
       if (!ctx) {
-        if (get().session && get().profile) return true;
+        if (get().session && get().profile) {
+          if (isRecovery) set({ passwordRecoveryPending: true });
+          return true;
+        }
         set({ isLoading: false, isProfileLoading: false });
         return false;
       }
-      set(applyAuthenticated(ctx.session, ctx.profile));
+      set({
+        ...applyAuthenticated(ctx.session, ctx.profile),
+        ...(isRecovery ? { passwordRecoveryPending: true } : {}),
+      });
       invalidateProfileQueries();
       return true;
     } catch (e) {
-      if (get().session && get().profile) return true;
+      if (get().session && get().profile) {
+        if (isRecovery) set({ passwordRecoveryPending: true });
+        return true;
+      }
       const message = getAuthErrorMessage(e);
       set({ error: message });
       throw toAuthError(e);
@@ -204,8 +234,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           authListenerUnsub = null;
         }
 
-        authListenerUnsub = authService.onAuthStateChange((session) => {
+        authListenerUnsub = authService.onAuthStateChange((session, event) => {
           void (async () => {
+            if (event === 'PASSWORD_RECOVERY') {
+              set({ passwordRecoveryPending: true });
+            }
+
             if (!session) {
               try {
                 await getContainer().pushNotificationService.deactivateCurrentDevice();
@@ -227,7 +261,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             if (
               get().session?.accessToken === session.accessToken &&
               get().profile &&
-              !get().profileLoadFailed
+              !get().profileLoadFailed &&
+              event !== 'PASSWORD_RECOVERY'
             ) {
               return;
             }
@@ -238,6 +273,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               set({
                 ...applyAuthenticated(ctx.session, ctx.profile),
                 isProfileLoading: false,
+                ...(event === 'PASSWORD_RECOVERY'
+                  ? { passwordRecoveryPending: true }
+                  : {}),
               });
               invalidateProfileQueries();
             } catch (profileError) {
@@ -249,6 +287,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 profileLoadFailed: true,
                 isProfileLoading: false,
                 error: getAuthErrorMessage(profileError),
+                ...(event === 'PASSWORD_RECOVERY'
+                  ? { passwordRecoveryPending: true }
+                  : {}),
               });
             }
           })();
@@ -442,6 +483,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  updatePassword: async (password) => {
+    set({ isLoading: true, error: null });
+    try {
+      await getContainer().authService.updatePassword(password);
+      set({ passwordRecoveryPending: false });
+    } catch (e) {
+      const message = getAuthErrorMessage(e);
+      set({ error: message });
+      throw toAuthError(e);
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
   resendSignupEmail: async (email) => {
     const target = (email ?? get().pendingVerificationEmail ?? '').trim();
     if (!target) {
@@ -530,6 +585,51 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         userId,
         input,
       );
+      set(applyAuthenticated(session, profile));
+      invalidateProfileQueries();
+    } catch (e) {
+      const message = getAuthErrorMessage(e);
+      set({ error: message });
+      throw toAuthError(e);
+    } finally {
+      set({ isLoading: false, isProfileLoading: false });
+    }
+  },
+
+  uploadAvatar: async (localUri) => {
+    const session = get().session;
+    const userId = session?.user.id;
+    if (!userId) {
+      throw toAuthError(new Error('You must be signed in to upload a profile picture.'));
+    }
+
+    set({ isLoading: true, isProfileLoading: true, error: null });
+    try {
+      const profile = await getContainer().profileService.uploadAvatar(
+        userId,
+        localUri,
+      );
+      set(applyAuthenticated(session, profile));
+      invalidateProfileQueries();
+    } catch (e) {
+      const message = getAuthErrorMessage(e);
+      set({ error: message });
+      throw toAuthError(e);
+    } finally {
+      set({ isLoading: false, isProfileLoading: false });
+    }
+  },
+
+  removeAvatar: async () => {
+    const session = get().session;
+    const userId = session?.user.id;
+    if (!userId) {
+      throw toAuthError(new Error('You must be signed in to remove a profile picture.'));
+    }
+
+    set({ isLoading: true, isProfileLoading: true, error: null });
+    try {
+      const profile = await getContainer().profileService.removeAvatar(userId);
       set(applyAuthenticated(session, profile));
       invalidateProfileQueries();
     } catch (e) {

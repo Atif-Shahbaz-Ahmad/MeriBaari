@@ -1,0 +1,4 @@
+# Shared voice STT. Invoked by the signed-in mobile client (JWT required).
+# DEEPGRAM_API_KEY must be set with: npx supabase secrets set DEEPGRAM_API_KEY=...
+# Does not call Gemini. Transcripts are sent to customer-chatbot / business-chatbot by the app.
+verify_jwt = true

@@ -11,6 +11,10 @@ export type NotificationType =
   | 'QUEUE_CLOSED'
   | 'QUEUE_TURN_APPROACHING'
   | 'QUEUE_CANCELLED'
+  | 'CUSTOMER_JOINED'
+  | 'SUBSCRIPTION_PAYMENT_SUBMITTED'
+  | 'SUBSCRIPTION_APPROVED'
+  | 'SUBSCRIPTION_REJECTED'
   | 'SYSTEM';
 
 /** UI-facing notification — mirrors domain AppNotification. */
@@ -75,7 +79,6 @@ export interface AboutContent {
   goal: string;
   technologies: string[];
   team: { name: string; role: string }[];
-  social: { label: string; handle: string }[];
   supportEmail: string;
   supportPhone: string;
 }

@@ -1,4 +1,5 @@
 import type { Organization, OrganizationCategory } from '@/types';
+import { MOCK_SERVICES } from '@/mock/services';
 
 export const MOCK_ORGANIZATIONS: Organization[] = [
   {
@@ -338,11 +339,21 @@ export function searchOrganizations(
     if (!matchesCategory) return false;
     if (!normalized) return true;
 
-    return (
+    const textMatch =
       org.name.toLowerCase().includes(normalized) ||
       org.city.toLowerCase().includes(normalized) ||
       org.address.toLowerCase().includes(normalized) ||
-      org.category.toLowerCase().includes(normalized)
+      org.category.toLowerCase().includes(normalized) ||
+      (org.description?.toLowerCase().includes(normalized) ?? false);
+
+    if (textMatch) return true;
+
+    // Also match organizations that offer a service matching the query.
+    return MOCK_SERVICES.some(
+      (service) =>
+        service.organizationId === org.id &&
+        (service.name.toLowerCase().includes(normalized) ||
+          (service.description?.toLowerCase().includes(normalized) ?? false)),
     );
   });
 }

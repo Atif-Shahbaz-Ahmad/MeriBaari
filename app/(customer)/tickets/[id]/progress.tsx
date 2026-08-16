@@ -165,7 +165,7 @@ export default function QueueProgressDetailsScreen() {
                             : entry.isServing
                               ? Colors.secondary
                               : entry.isPast
-                                ? Colors.secondary100
+                                ? theme.tints.secondary.bgStrong
                                 : theme.border,
                         },
                       ]}

@@ -15,12 +15,14 @@ import { createMockSession, MOCK_AUTH_USERS } from '@/mock/auth';
  */
 export class MockAuthRepository implements AuthRepository {
   private session: AuthSession | null = null;
-  private listeners = new Set<(session: AuthSession | null) => void>();
+  private listeners = new Set<
+    (session: AuthSession | null, event?: string) => void
+  >();
   private pendingOtp = new Map<string, { channel: OtpChannel; destination: string }>();
 
-  private emit(session: AuthSession | null) {
+  private emit(session: AuthSession | null, event = 'SIGNED_IN') {
     this.session = session;
-    this.listeners.forEach((cb) => cb(session));
+    this.listeners.forEach((cb) => cb(session, session ? event : 'SIGNED_OUT'));
   }
 
   async getSession(): Promise<AuthSession | null> {
@@ -34,12 +36,12 @@ export class MockAuthRepository implements AuthRepository {
       accessToken: `demo_refresh_${Date.now()}`,
       expiresAt: Math.floor(Date.now() / 1000) + 3600,
     };
-    this.emit(refreshed);
+    this.emit(refreshed, 'TOKEN_REFRESHED');
     return refreshed;
   }
 
   onAuthStateChange(
-    callback: (session: AuthSession | null) => void,
+    callback: (session: AuthSession | null, event?: string) => void,
   ): Unsubscribe {
     this.listeners.add(callback);
     return () => {
@@ -69,7 +71,14 @@ export class MockAuthRepository implements AuthRepository {
     return session;
   }
 
-  async establishSessionFromUrl(_url: string): Promise<AuthSession | null> {
+  async establishSessionFromUrl(url: string): Promise<AuthSession | null> {
+    // Demo: recovery links create a session so reset-password UI can be exercised.
+    if (url.toLowerCase().includes('type=recovery') || url.toLowerCase().includes('recovery')) {
+      const session = createMockSession(null, { email: 'reset.user@example.com' });
+      session.method = 'email';
+      this.emit(session, 'PASSWORD_RECOVERY');
+      return session;
+    }
     return null;
   }
 
@@ -124,12 +133,27 @@ export class MockAuthRepository implements AuthRepository {
     // Demo: no-op success
   }
 
+  async updatePassword(password: string): Promise<void> {
+    if (!this.session) {
+      throw new AuthError(
+        'unauthorized',
+        'You must open a valid reset link before setting a new password.',
+      );
+    }
+    if (password.length < 6) {
+      throw new AuthError(
+        'weak_password',
+        'Password is too weak. Use at least 6 characters.',
+      );
+    }
+  }
+
   async resendSignupEmail(_email: string): Promise<void> {
     // Demo: no-op success
   }
 
   async signOut(): Promise<void> {
-    this.emit(null);
+    this.emit(null, 'SIGNED_OUT');
   }
 
   async createDemoSession(

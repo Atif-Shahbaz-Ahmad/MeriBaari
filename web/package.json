@@ -1,0 +1,36 @@
+{
+  "name": "meribaari-web",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.5.7",
+    "@supabase/ssr": "^0.6.1",
+    "@supabase/supabase-js": "^2.111.0",
+    "@tanstack/react-query": "^5.101.4",
+    "lucide-react": "^0.511.0",
+    "next": "^15.5.9",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-hook-form": "^7.83.0",
+    "zod": "^4.4.3",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "@types/react": "~19.1.0",
+    "@types/react-dom": "~19.1.0",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9.25.0",
+    "eslint-config-next": "^15.5.9",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "typescript": "~5.9.2"
+  }
+}

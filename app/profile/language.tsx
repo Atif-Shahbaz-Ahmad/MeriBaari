@@ -7,16 +7,19 @@ import { LanguageSelector } from '@/components/profile/LanguageSelector';
 import { FlowHeader } from '@/components/ui/FlowHeader';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { useTranslation } from '@/hooks/use-translation';
 import { useTheme } from '@/hooks/use-theme';
 import { usePreferencesStore } from '@/store/preferences-store';
 import type { AppLanguage } from '@/types';
 
 export default function LanguageSettingsScreen() {
   const theme = useTheme();
+  const { t } = useTranslation();
   const language = usePreferencesStore((s) => s.language);
   const setLanguage = usePreferencesStore((s) => s.setLanguage);
 
   const onChange = (value: AppLanguage) => {
+    if (value === language) return;
     void setLanguage(value);
   };
 
@@ -25,14 +28,14 @@ export default function LanguageSettingsScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInDown.duration(400)} style={styles.padded}>
           <FlowHeader
-            title="Language"
-            subtitle="Display language preference"
+            title={t('language.title')}
+            subtitle={t('language.subtitle')}
             onBack={() => router.back()}
           />
         </Animated.View>
         <Animated.View entering={FadeInDown.delay(40).duration(400)} style={styles.padded}>
           <Text style={[styles.note, { color: theme.textSecondary }]}>
-            Full localization arrives later. Your choice is saved on this device.
+            {t('language.note')}
           </Text>
         </Animated.View>
         <Animated.View entering={FadeInDown.delay(80).duration(400)} style={styles.padded}>
@@ -50,6 +53,7 @@ const styles = StyleSheet.create({
   },
   padded: {
     paddingHorizontal: Spacing.md,
+    gap: Spacing.sm,
   },
   note: {
     ...Typography.body,

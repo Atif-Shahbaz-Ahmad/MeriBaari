@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
   ArrowLeftRight,
   Bell,
@@ -34,29 +34,38 @@ import {
   pushThemeSettings,
 } from '@/features/profile/navigation';
 import { useAuth } from '@/hooks/use-auth';
+import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/use-translation';
 import { dataAccess } from '@/data';
 import { useCurrentProfileQuery } from '@/features/profile/hooks/use-current-profile';
+import { useMyTicketStatistics } from '@/features/history/hooks/use-my-ticket-statistics';
+import { EMPTY_TICKET_STATISTICS } from '@/mock/statistics';
 import { usePreferencesStore } from '@/store/preferences-store';
 import { useThemeStore } from '@/store/theme-store';
 
 const LANGUAGE_OPTIONS = dataAccess.LANGUAGE_OPTIONS;
-const MOCK_PROFILE_STATS = dataAccess.MOCK_PROFILE_STATS;
 
 export default function ProfileScreen() {
-  const { user, profile, role, signOut, switchRole } = useAuth();
+  const theme = useTheme();
+  const { t } = useTranslation();
+  const { user, profile, role, signOut, switchRole, isLoading } = useAuth();
   useCurrentProfileQuery(Boolean(user?.id));
+  const { data: stats = EMPTY_TICKET_STATISTICS } =
+    useMyTicketStatistics(Boolean(user?.id));
+  const favoriteLabel = stats.favoriteOrganization.split(' ')[0] || '—';
   const preference = useThemeStore((s) => s.preference);
   const language = usePreferencesStore((s) => s.language);
   const languageLabel =
-    LANGUAGE_OPTIONS.find((o) => o.value === language)?.label ?? 'English';
+    LANGUAGE_OPTIONS.find((o) => o.value === language)?.label ?? t('language.title');
 
   const displayName = profile?.fullName ?? user?.fullName;
   const displayEmail = profile?.email ?? user?.email;
   const displayPhone = profile?.phone ?? user?.phone;
   const displayAvatar = profile?.avatarUrl ?? user?.avatarUrl;
-  const memberSince = profile?.createdAt ?? MOCK_PROFILE_STATS.membershipSince;
+  const memberSince = profile?.createdAt;
 
   const onSignOut = async () => {
+    if (isLoading) return;
     await signOut();
     router.replace(AuthHref.welcome);
   };
@@ -82,72 +91,72 @@ export default function ProfileScreen() {
         />
 
         <Animated.View entering={FadeInDown.delay(60).duration(400)} style={styles.padded}>
-          <Card style={styles.roleCard}>
-            <Text style={styles.roleLabel}>Current role</Text>
-            <Text style={styles.roleValue}>{dataAccess.getRoleDisplayLabel(role)}</Text>
+          <Card style={[styles.roleCard, { backgroundColor: theme.tints.primary.bg, borderColor: theme.tints.primary.border }]}>
+            <Text style={[styles.roleLabel, { color: theme.tints.primary.fg }]}>{t('profile.currentRole')}</Text>
+            <Text style={[styles.roleValue, { color: theme.tints.primary.fg }]}>{dataAccess.getRoleDisplayLabel(role)}</Text>
           </Card>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(80).duration(400)} style={styles.padded}>
           <View style={styles.stats}>
             <StatisticCard
-              label="Queues Joined"
-              value={String(MOCK_PROFILE_STATS.queuesJoined)}
+              label={t('profile.statQueuesJoined')}
+              value={String(stats.queuesJoined)}
             />
             <StatisticCard
-              label="Hours Saved"
-              value={String(MOCK_PROFILE_STATS.hoursSaved)}
+              label={t('profile.statHoursSaved')}
+              value={String(stats.hoursSaved)}
             />
           </View>
           <View style={styles.stats}>
             <StatisticCard
-              label="Avg. Wait"
-              value={`${MOCK_PROFILE_STATS.averageWaitingMinutes} min`}
+              label={t('profile.statAvgWait')}
+              value={t('common.minutesShort', { count: stats.averageWaitingMinutes })}
             />
             <StatisticCard
-              label="Favorite"
-              value={MOCK_PROFILE_STATS.favoriteOrganization.split(' ')[0] ?? '—'}
+              label={t('profile.statFavorite')}
+              value={favoriteLabel}
             />
           </View>
         </Animated.View>
 
         <View style={styles.padded}>
-          <SettingsGroup title="Quick actions" index={0}>
+          <SettingsGroup title={t('profile.quickActions')} index={0}>
             <SettingsItem
               icon={<UserRound size={18} color={Colors.primary} />}
-              label="Edit Profile"
+              label={t('profile.editProfile')}
               onPress={pushEditProfile}
             />
             <SettingsItem
               icon={<Bell size={18} color={Colors.primary} />}
-              label="Notification Preferences"
+              label={t('profile.notificationPreferences')}
               onPress={pushNotificationSettings}
             />
             <SettingsItem
               icon={<Shield size={18} color={Colors.primary} />}
-              label="Privacy"
+              label={t('profile.privacy')}
               onPress={pushPrivacy}
             />
             <SettingsItem
               icon={<Languages size={18} color={Colors.primary} />}
-              label="Language"
+              label={t('profile.language')}
               value={languageLabel}
               onPress={pushLanguageSettings}
             />
             <SettingsItem
               icon={<Moon size={18} color={Colors.primary} />}
-              label="Theme"
+              label={t('profile.theme')}
               value={preference}
               onPress={pushThemeSettings}
             />
             <SettingsItem
               icon={<CircleHelp size={18} color={Colors.primary} />}
-              label="Help & Support"
+              label={t('profile.help')}
               onPress={pushHelp}
             />
             <SettingsItem
               icon={<Info size={18} color={Colors.primary} />}
-              label="About MeriBaari"
+              label={t('profile.about')}
               onPress={pushAbout}
               showDivider={false}
             />
@@ -158,8 +167,8 @@ export default function ProfileScreen() {
           <Card padded={false}>
             <SettingsItem
               icon={<Moon size={18} color={Colors.primary} />}
-              label="Open Settings"
-              description="General, accessibility, and account"
+              label={t('profile.openSettings')}
+              description={t('profile.openSettingsHint')}
               onPress={pushSettings}
               showDivider={false}
             />
@@ -169,11 +178,11 @@ export default function ProfileScreen() {
         {/* DEV ONLY — remove before production */}
         {__DEV__ ? (
           <View style={styles.padded}>
-            <SettingsGroup title="Developer" index={2}>
+            <SettingsGroup title={t('profile.developer')} index={2}>
               <SettingsItem
                 icon={<ArrowLeftRight size={18} color={Colors.accent} />}
-                label="Switch Role"
-                description="DEV: jump to Business app"
+                label={t('profile.switchRole')}
+                description={t('profile.switchRoleBusiness')}
                 onPress={() => void onDevSwitchRole()}
                 showDivider={false}
               />
@@ -184,13 +193,24 @@ export default function ProfileScreen() {
         <Animated.View entering={FadeInDown.delay(220).duration(400)} style={styles.padded}>
           <Pressable
             onPress={() => void onSignOut()}
-            style={[styles.logout, { backgroundColor: Colors.error50 }]}
+            disabled={isLoading}
+            style={[
+              styles.logout,
+              { backgroundColor: theme.tints.error.bg, opacity: isLoading ? 0.6 : 1 },
+            ]}
             accessibilityRole="button"
-            accessibilityLabel="Sign out"
+            accessibilityLabel={t('profile.signOutA11y')}
             accessibilityHint="Signs you out of MeriBaari"
+            accessibilityState={{ disabled: isLoading, busy: isLoading }}
           >
-            <LogOut size={18} color={Colors.error} />
-            <Text style={styles.logoutText}>Logout</Text>
+            {isLoading ? (
+              <ActivityIndicator color={Colors.error} />
+            ) : (
+              <LogOut size={18} color={Colors.error} />
+            )}
+            <Text style={styles.logoutText}>
+              {isLoading ? t('common.signingOut') : t('common.signOut')}
+            </Text>
           </Pressable>
         </Animated.View>
       </ScrollView>
@@ -210,16 +230,12 @@ const styles = StyleSheet.create({
   roleCard: {
     alignItems: 'center',
     gap: Spacing.xs,
-    backgroundColor: Colors.primary50,
-    borderColor: Colors.primary100,
   },
   roleLabel: {
     ...Typography.caption,
-    color: Colors.primary700,
   },
   roleValue: {
     ...Typography.h3,
-    color: Colors.primary,
   },
   stats: {
     flexDirection: 'row',

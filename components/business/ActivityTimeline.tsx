@@ -65,7 +65,7 @@ export function ActivityTimeline({ items, title = 'Recent activity' }: ActivityT
       <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
       <View style={styles.list}>
         {items.map((item, index) => {
-          const meta = getActivityMeta(item.type);
+          const meta = getActivityMeta(item.type, theme.tints);
           return (
             <Animated.View
               key={item.id}

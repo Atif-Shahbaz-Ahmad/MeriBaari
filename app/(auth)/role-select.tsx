@@ -1,6 +1,6 @@
 import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { Sparkles } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,13 +13,17 @@ import { Typography } from '@/constants/typography';
 import { AuthHref, getHomeHref } from '@/features/auth/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { useTheme } from '@/hooks/use-theme';
-import type { UserRole } from '@/types';
+import { useTranslation } from '@/hooks/use-translation';
+import type { SelectableUserRole } from '@/features/auth/roles';
 
 export default function RoleSelectScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { setRole, role: existingRole, isLoading, isAuthenticated } = useAuth();
-  const [selected, setSelected] = useState<UserRole | null>(existingRole ?? null);
+  const [selected, setSelected] = useState<SelectableUserRole | null>(
+    existingRole === 'customer' || existingRole === 'business' ? existingRole : null,
+  );
 
   if (!isAuthenticated) {
     return <Redirect href={AuthHref.welcome} />;
@@ -31,6 +35,9 @@ export default function RoleSelectScreen() {
 
   const onContinue = async () => {
     if (!selected) return;
+    if (selected === 'business') {
+      Alert.alert(t('subscription.signup.title'), t('subscription.signup.body'));
+    }
     await setRole(selected);
     router.replace(getHomeHref(selected));
   };
@@ -47,7 +54,7 @@ export default function RoleSelectScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View entering={ZoomIn.duration(420)} style={styles.heroIcon}>
+        <Animated.View entering={ZoomIn.duration(420)} style={[styles.heroIcon, { backgroundColor: theme.tints.primary.bg }]}>
           <Sparkles size={32} color={Colors.primary} strokeWidth={1.75} />
         </Animated.View>
 
@@ -105,7 +112,6 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: Radius['2xl'],
-    backgroundColor: Colors.primary50,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',

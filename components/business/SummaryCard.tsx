@@ -2,7 +2,6 @@ import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { Card } from '@/components/ui/Card';
-import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
@@ -17,13 +16,6 @@ interface SummaryCardProps {
   style?: ViewStyle;
 }
 
-const ACCENT = {
-  blue: Colors.primary50,
-  green: Colors.secondary50,
-  orange: Colors.accent50,
-  red: Colors.error50,
-} as const;
-
 export function SummaryCard({
   title,
   value,
@@ -34,10 +26,16 @@ export function SummaryCard({
   style,
 }: SummaryCardProps) {
   const theme = useTheme();
+  const accentBg = {
+    blue: theme.tints.primary.bg,
+    green: theme.tints.secondary.bg,
+    orange: theme.tints.accent.bg,
+    red: theme.tints.error.bg,
+  }[accent];
 
   return (
     <Animated.View entering={FadeInDown.delay(index * 60).duration(380)} style={[{ flex: 1 }, style]}>
-      <Card style={[styles.card, { backgroundColor: theme.card === Colors.card ? ACCENT[accent] : theme.card }]}>
+      <Card style={[styles.card, { backgroundColor: theme.isDark ? theme.card : accentBg }]}>
         <View style={styles.top}>
           {icon}
           <Text style={[styles.title, { color: theme.textSecondary }]} numberOfLines={1}>

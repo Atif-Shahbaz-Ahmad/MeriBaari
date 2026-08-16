@@ -3,6 +3,9 @@ import { Radius, Shadows, Spacing } from './spacing';
 import { Typography } from './typography';
 import { AppConfig, StorageKeys } from './config';
 
+export type { AppTheme, SemanticTint, SemanticTints } from './colors';
+export { DarkTints, LightTints } from './colors';
+
 export const Theme = {
   colors: Colors,
   light: LightTheme,

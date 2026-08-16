@@ -283,8 +283,12 @@ export const useBusinessQueueStore = create<BusinessQueueState>((set, get) => ({
       ticketNumber,
       queueId: queue.id,
       queueName: queue.name,
-      departmentName: department?.name ?? queue.departmentName,
-      serviceName: service?.name ?? queue.serviceName,
+      departmentName:
+        draft.departmentName?.trim() ||
+        department?.name ||
+        queue.departmentName,
+      serviceName:
+        draft.serviceName?.trim() || service?.name || queue.serviceName,
       estimatedWaitMinutes: queue.estimatedWaitMinutes,
       position: queue.waitingCount + 1,
     };

@@ -8,16 +8,18 @@ export default function AuthLayout() {
   const isRestoringSession = useAuthStore((s) => s.isRestoringSession);
   const isProfileLoading = useAuthStore((s) => s.isProfileLoading);
   const profileLoadFailed = useAuthStore((s) => s.profileLoadFailed);
+  const passwordRecoveryPending = useAuthStore((s) => s.passwordRecoveryPending);
   const session = useAuthStore((s) => s.session);
   const role = useAuthStore((s) => s.role);
   const pathname = usePathname();
   const onRoleSelect = pathname.includes('role-select');
   const onProfileRecovery = pathname.includes('profile-recovery');
+  const onResetPassword = pathname.includes('reset-password');
 
   if (
     !isInitialized ||
     isRestoringSession ||
-    (session && isProfileLoading && !role && !profileLoadFailed)
+    (session && isProfileLoading && !role && !profileLoadFailed && !passwordRecoveryPending)
   ) {
     return (
       <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
@@ -27,21 +29,32 @@ export default function AuthLayout() {
         <Stack.Screen name="signup" />
         <Stack.Screen name="verify-email" />
         <Stack.Screen name="forgot-password" />
+        <Stack.Screen name="reset-password" />
         <Stack.Screen name="role-select" />
         <Stack.Screen name="profile-recovery" />
       </Stack>
     );
   }
 
-  if (session && profileLoadFailed && !onProfileRecovery) {
+  if (session && passwordRecoveryPending && !onResetPassword) {
+    return <Redirect href={AuthHref.resetPassword} />;
+  }
+
+  if (session && profileLoadFailed && !onProfileRecovery && !passwordRecoveryPending) {
     return <Redirect href={AuthHref.profileRecovery} />;
   }
 
-  if (session && role && !profileLoadFailed) {
+  if (session && role && !profileLoadFailed && !passwordRecoveryPending) {
     return <Redirect href={getHomeHref(role)} />;
   }
 
-  if (session && !role && !profileLoadFailed && !onRoleSelect) {
+  if (
+    session &&
+    !role &&
+    !profileLoadFailed &&
+    !onRoleSelect &&
+    !passwordRecoveryPending
+  ) {
     return <Redirect href={AuthHref.roleSelect} />;
   }
 
@@ -53,6 +66,7 @@ export default function AuthLayout() {
       <Stack.Screen name="signup" />
       <Stack.Screen name="verify-email" />
       <Stack.Screen name="forgot-password" />
+      <Stack.Screen name="reset-password" />
       <Stack.Screen name="role-select" options={{ animation: 'fade' }} />
       <Stack.Screen name="profile-recovery" options={{ animation: 'fade' }} />
     </Stack>

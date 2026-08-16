@@ -4,13 +4,21 @@ import type { AvailabilityStatus } from '@/types/organization';
 /** Organization operational status — maps to `organizations.status`. */
 export type OrganizationStatus = 'active' | 'inactive' | 'suspended';
 
+/** Business subscription / customer-visibility state. */
+export type SubscriptionStatus =
+  | 'draft'
+  | 'pending_payment'
+  | 'pending_approval'
+  | 'active'
+  | 'rejected';
+
 /** Canonical organization category — maps to `organizations.category`. */
 export type OrganizationCategory = OrganizationCategoryId;
 
 /**
  * Canonical organization entity — maps to `organizations` table.
  * Catalog/discovery fields (distance, rating, flags) default until
- * queues and reviews are wired.
+ * queues are live; rating/reviewCount come from the reviews aggregate.
  */
 export interface Organization {
   id: string;
@@ -32,6 +40,14 @@ export interface Organization {
   averageWaitTime: number;
   isActive: boolean;
   status: OrganizationStatus;
+  subscriptionStatus: SubscriptionStatus;
+  approvedAt: string | null;
+  approvedBy: string | null;
+  subscriptionSubmittedAt: string | null;
+  paymentRejectionReason: string | null;
+  adminHidden: boolean;
+  adminHiddenReason: string | null;
+  adminHiddenAt: string | null;
   workingHours: string;
   createdAt: string;
   updatedAt: string;
@@ -74,3 +90,22 @@ export interface OrganizationMember {
 }
 
 export type { AvailabilityStatus };
+
+/** Customers may discover an organization only when it is approved, operational, and not hidden by admin. */
+export function isOrganizationPublic(org: Pick<
+  Organization,
+  'subscriptionStatus' | 'isActive' | 'status' | 'adminHidden'
+>): boolean {
+  return (
+    org.subscriptionStatus === 'active' &&
+    org.isActive &&
+    org.status === 'active' &&
+    !org.adminHidden
+  );
+}
+
+export function isSubscriptionLive(
+  status: SubscriptionStatus | null | undefined,
+): boolean {
+  return status === 'active';
+}

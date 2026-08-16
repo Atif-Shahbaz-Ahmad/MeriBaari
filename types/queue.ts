@@ -82,9 +82,17 @@ export interface NearbyService {
   id: string;
   name: string;
   category: string;
-  icon: 'hospital' | 'bank' | 'id-card' | 'passport' | 'clinic' | 'pharmacy';
+  icon:
+    | 'hospital'
+    | 'bank'
+    | 'building'
+    | 'clinic'
+    | 'university'
+    | 'utensils'
+    | 'landmark'
+    | 'car';
   averageWaitMinutes: number;
-  distanceKm: number;
+  distanceKm?: number;
 }
 
 export interface ActivityItem {
@@ -92,11 +100,21 @@ export interface ActivityItem {
   title: string;
   subtitle: string;
   timestamp: string;
-  type: 'joined' | 'completed' | 'reminder' | 'cancelled';
+  type:
+    | 'joined'
+    | 'called'
+    | 'serving'
+    | 'completed'
+    | 'skipped'
+    | 'paused'
+    | 'resumed'
+    | 'closed'
+    | 'reminder'
+    | 'cancelled';
 }
 
 export interface QuickAction {
   id: string;
   label: string;
-  icon: 'scan' | 'search' | 'history' | 'favorites';
+  icon: 'search' | 'history' | 'favorites';
 }

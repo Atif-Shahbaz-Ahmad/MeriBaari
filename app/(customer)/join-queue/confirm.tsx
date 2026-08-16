@@ -4,8 +4,7 @@ import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { CheckCircle2, Clock3, Users } from 'lucide-react-native';
 
-import { PrimaryButton } from '@/components/buttons/PrimaryButton';
-import { SecondaryButton } from '@/components/buttons/PrimaryButton';
+import { PrimaryButton, SecondaryButton } from '@/components/buttons/PrimaryButton';
 import { Screen } from '@/components/layout/Screen';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -186,8 +185,8 @@ export default function JoinQueueConfirmScreen() {
             style={[
               styles.reminder,
               {
-                backgroundColor: Colors.primary50,
-                borderColor: Colors.primary100,
+                backgroundColor: theme.tints.primary.bg,
+                borderColor: theme.tints.primary.border,
               },
             ]}
           >

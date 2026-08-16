@@ -3,10 +3,10 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { CloudOff, RefreshCw, WifiOff } from 'lucide-react-native';
 
 import { Button } from '@/components/ui/Button';
-import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/use-translation';
 
 export type ErrorStateVariant = 'generic' | 'network' | 'offline';
 
@@ -19,18 +19,18 @@ interface ErrorStateProps {
   style?: ViewStyle;
 }
 
-const COPY: Record<ErrorStateVariant, { title: string; description: string }> = {
+const COPY_KEYS: Record<ErrorStateVariant, { title: string; description: string }> = {
   generic: {
-    title: 'Something went wrong',
-    description: 'We hit an unexpected issue. Please try again in a moment.',
+    title: 'errors.genericTitle',
+    description: 'errors.genericBody',
   },
   network: {
-    title: 'Network error',
-    description: 'We couldn’t reach MeriBaari services. Check your connection and retry.',
+    title: 'errors.networkTitle',
+    description: 'errors.networkBody',
   },
   offline: {
-    title: 'No internet',
-    description: 'You’re offline. Reconnect to refresh queues and notifications.',
+    title: 'errors.offlineTitle',
+    description: 'errors.offlineBody',
   },
 };
 
@@ -39,11 +39,12 @@ export function ErrorState({
   title,
   description,
   onRetry,
-  retryLabel = 'Try again',
+  retryLabel,
   style,
 }: ErrorStateProps) {
   const theme = useTheme();
-  const copy = COPY[variant];
+  const { t } = useTranslation();
+  const copy = COPY_KEYS[variant];
   const Icon = variant === 'offline' ? WifiOff : variant === 'network' ? CloudOff : RefreshCw;
 
   return (
@@ -52,22 +53,22 @@ export function ErrorState({
       style={[styles.container, style]}
       accessibilityRole="alert"
     >
-      <View style={[styles.iconWrap, { backgroundColor: Colors.error50 }]}>
-        <Icon size={28} color={Colors.error} strokeWidth={1.75} />
+      <View style={[styles.iconWrap, { backgroundColor: theme.tints.error.bg }]}>
+        <Icon size={28} color={theme.tints.error.fg} strokeWidth={1.75} />
       </View>
-      <Text style={[styles.title, { color: theme.text }]}>{title ?? copy.title}</Text>
+      <Text style={[styles.title, { color: theme.text }]}>{title ?? t(copy.title)}</Text>
       <Text style={[styles.description, { color: theme.textSecondary }]}>
-        {description ?? copy.description}
+        {description ?? t(copy.description)}
       </Text>
       {onRetry ? (
         <Button
-          title={retryLabel}
+          title={retryLabel ?? t('errors.tryAgain')}
           onPress={onRetry}
           variant="secondary"
           fullWidth={false}
-          leftIcon={<RefreshCw size={16} color={Colors.primary} />}
+          leftIcon={<RefreshCw size={16} color={theme.tints.primary.fg} />}
           style={styles.button}
-          accessibilityHint="Retries the last action"
+          accessibilityHint={t('errors.retryHint')}
         />
       ) : null}
     </Animated.View>

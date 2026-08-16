@@ -2,6 +2,7 @@ export { FAQCard } from './FAQCard';
 export { LanguageSelector } from './LanguageSelector';
 export { NotificationCard } from './NotificationCard';
 export { PreferenceSwitch } from './PreferenceSwitch';
+export { ProfileAvatarEditor } from './ProfileAvatarEditor';
 export { ProfileHeader } from './ProfileHeader';
 export { SectionTitle } from './SectionTitle';
 export { SettingsGroup } from './SettingsGroup';

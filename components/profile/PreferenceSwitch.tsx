@@ -26,8 +26,8 @@ export function PreferenceSwitch({
       accessibilityLabel={label}
       accessibilityRole="switch"
       accessibilityState={{ checked: value, disabled }}
-      trackColor={{ false: theme.border, true: Colors.primary100 }}
-      thumbColor={value ? Colors.primary : '#f4f4f5'}
+      trackColor={{ false: theme.border, true: theme.tints.primary.bgStrong }}
+      thumbColor={value ? Colors.primary : theme.isDark ? theme.card : '#f4f4f5'}
       ios_backgroundColor={theme.border}
     />
   );

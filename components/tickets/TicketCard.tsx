@@ -87,7 +87,7 @@ export function TicketCard({ ticket, onPress, index = 0 }: TicketCardProps) {
         ]}
       >
         <View style={styles.header}>
-          <View style={[styles.logo, { backgroundColor: Colors.primary50 }]}>
+          <View style={[styles.logo, { backgroundColor: theme.tints.primary.bg }]}>
             <Icon size={20} color={Colors.primary} strokeWidth={1.75} />
           </View>
           <View style={styles.headerText}>

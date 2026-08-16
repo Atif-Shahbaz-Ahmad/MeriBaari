@@ -4,9 +4,11 @@ import { Platform } from 'react-native';
 
 import { Colors } from '@/constants/colors';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/use-translation';
 
 export default function BusinessTabsLayout() {
   const theme = useTheme();
+  const { t } = useTranslation();
 
   return (
     <Tabs
@@ -30,8 +32,8 @@ export default function BusinessTabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
-          tabBarAccessibilityLabel: 'Dashboard tab',
+          title: t('tabs.business.dashboard'),
+          tabBarAccessibilityLabel: t('tabs.business.dashboardA11y'),
           tabBarIcon: ({ color, size }) => (
             <LayoutDashboard color={color} size={size} strokeWidth={2} />
           ),
@@ -40,8 +42,8 @@ export default function BusinessTabsLayout() {
       <Tabs.Screen
         name="queue"
         options={{
-          title: 'Queue',
-          tabBarAccessibilityLabel: 'Queue tab',
+          title: t('tabs.business.queue'),
+          tabBarAccessibilityLabel: t('tabs.business.queueA11y'),
           tabBarIcon: ({ color, size }) => (
             <ListOrdered color={color} size={size} strokeWidth={2} />
           ),
@@ -50,8 +52,8 @@ export default function BusinessTabsLayout() {
       <Tabs.Screen
         name="services"
         options={{
-          title: 'Services',
-          tabBarAccessibilityLabel: 'Services tab',
+          title: t('tabs.business.services'),
+          tabBarAccessibilityLabel: t('tabs.business.servicesA11y'),
           tabBarIcon: ({ color, size }) => (
             <BriefcaseBusiness color={color} size={size} strokeWidth={2} />
           ),
@@ -60,8 +62,8 @@ export default function BusinessTabsLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
-          tabBarAccessibilityLabel: 'Profile tab',
+          title: t('tabs.business.profile'),
+          tabBarAccessibilityLabel: t('tabs.business.profileA11y'),
           tabBarIcon: ({ color, size }) => <UserRound color={color} size={size} strokeWidth={2} />,
         }}
       />

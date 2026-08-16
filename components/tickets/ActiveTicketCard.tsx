@@ -12,13 +12,12 @@ import {
 } from 'lucide-react-native';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 
-import { QRPlaceholder } from '@/components/tickets/QRPlaceholder';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Colors } from '@/constants/colors';
 import { Radius, Shadows, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { getStatusMeta } from '@/features/tickets/status';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/use-translation';
 import {
   formatTicketDate,
   formatTicketTime,
@@ -43,7 +42,7 @@ interface ActiveTicketCardProps {
 
 export function ActiveTicketCard({ ticket }: ActiveTicketCardProps) {
   const theme = useTheme();
-  const statusMeta = getStatusMeta(ticket.status);
+  const { t } = useTranslation();
   const Icon = LOGO_ICONS[ticket.logoIcon ?? 'building'] ?? Building2;
 
   return (
@@ -70,19 +69,19 @@ export function ActiveTicketCard({ ticket }: ActiveTicketCardProps) {
         </View>
 
         <Animated.View entering={ZoomIn.delay(120).duration(400)} style={styles.numberBlock}>
-          <Text style={styles.numberLabel}>Your Queue Number</Text>
+          <Text style={styles.numberLabel}>{t('tickets.card.yourNumber')}</Text>
           <Text style={styles.number}>{ticket.ticketNumber}</Text>
         </Animated.View>
 
         <View style={styles.metrics}>
-          <Metric label="Now Serving" value={ticket.currentServing} />
-          <Metric label="People Ahead" value={String(ticket.peopleAhead)} />
+          <Metric label={t('tickets.card.nowServing')} value={ticket.currentServing} />
+          <Metric label={t('tickets.card.peopleAhead')} value={String(ticket.peopleAhead)} />
           <Metric
-            label="Est. Wait"
+            label={t('tickets.card.estWait')}
             value={
               ticket.estimatedWaitMinutes > 0
                 ? formatWaitTime(ticket.estimatedWaitMinutes)
-                : 'Now'
+                : t('tickets.card.now')
             }
           />
         </View>
@@ -92,35 +91,33 @@ export function ActiveTicketCard({ ticket }: ActiveTicketCardProps) {
         <View style={styles.infoGrid}>
           <InfoCell
             icon={<Users size={16} color={Colors.primary} />}
-            label="Status"
-            value={statusMeta.label}
+            label={t('tickets.card.status')}
+            value={t(`tickets.status.${ticket.status}`)}
             theme={theme}
           />
           <InfoCell
             icon={<Building2 size={16} color={Colors.secondary} />}
-            label="Counter"
-            value={ticket.counter ? `Counter ${ticket.counter}` : 'TBA'}
+            label={t('tickets.card.counter')}
+            value={
+              ticket.counter
+                ? t('tickets.card.counterValue', { number: ticket.counter })
+                : t('tickets.card.tba')
+            }
             theme={theme}
           />
           <InfoCell
             icon={<Clock3 size={16} color={Colors.accent} />}
-            label="Date"
+            label={t('tickets.card.date')}
             value={formatTicketDate(ticket.joinedAt)}
             theme={theme}
           />
           <InfoCell
             icon={<Clock3 size={16} color={Colors.primary} />}
-            label="Joined"
+            label={t('tickets.card.joined')}
             value={formatTicketTime(ticket.joinedAt)}
             theme={theme}
           />
         </View>
-
-        <QRPlaceholder ticketNumber={ticket.ticketNumber} queueId={ticket.queueId} />
-
-        <Text style={[styles.queueId, { color: theme.textMuted }]}>
-          Queue ID · {ticket.queueId}
-        </Text>
       </View>
     </Animated.View>
   );
@@ -257,9 +254,5 @@ const styles = StyleSheet.create({
   },
   infoValue: {
     ...Typography.small,
-  },
-  queueId: {
-    ...Typography.caption,
-    textAlign: 'center',
   },
 });

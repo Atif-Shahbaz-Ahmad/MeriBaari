@@ -35,7 +35,9 @@ export class AuthService {
     return this.auth.refreshSession();
   }
 
-  onAuthStateChange(callback: (session: AuthSession | null) => void) {
+  onAuthStateChange(
+    callback: (session: AuthSession | null, event?: string) => void,
+  ) {
     return this.auth.onAuthStateChange(callback);
   }
 
@@ -96,6 +98,10 @@ export class AuthService {
 
   resetPassword(email: string) {
     return this.auth.resetPassword(email);
+  }
+
+  updatePassword(password: string) {
+    return this.auth.updatePassword(password);
   }
 
   resendSignupEmail(email: string) {

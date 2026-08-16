@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -17,6 +18,7 @@ import { RoleSelectCard } from '@/components/auth/RoleSelectCard';
 import { Logo } from '@/components/layout/Logo';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { PasswordInput } from '@/components/ui/PasswordInput';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -28,12 +30,14 @@ import {
 import { AuthHref, getHomeHref } from '@/features/auth/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { useColorScheme, useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/use-translation';
 import { useAuthStore } from '@/store/auth-store';
 import type { UserRole } from '@/types';
 
 export default function SignupScreen() {
   const theme = useTheme();
   const scheme = useColorScheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { signup, isLoading, needsEmailVerification } = useAuth();
   const [role, setRole] = useState<UserRole | null>(null);
@@ -60,8 +64,14 @@ export default function SignupScreen() {
       await signup(values.email.trim(), values.password, values.fullName.trim(), role);
       const state = useAuthStore.getState();
       if (state.needsEmailVerification || !state.session) {
+        if (role === 'business') {
+          Alert.alert(t('subscription.signup.title'), t('subscription.signup.body'));
+        }
         router.replace(AuthHref.verifyEmail);
         return;
+      }
+      if (role === 'business') {
+        Alert.alert(t('subscription.signup.title'), t('subscription.signup.body'));
       }
       router.replace(getHomeHref(state.role ?? role));
     } catch (e) {
@@ -72,7 +82,7 @@ export default function SignupScreen() {
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: theme.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
         contentContainerStyle={[
@@ -83,6 +93,7 @@ export default function SignupScreen() {
           },
         ]}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
         <Logo variant={scheme === 'dark' ? 'dark' : 'light'} size="md" />
 
@@ -138,14 +149,15 @@ export default function SignupScreen() {
             control={form.control}
             name="password"
             render={({ field: { onChange, onBlur, value }, fieldState }) => (
-              <Input
+              <PasswordInput
                 label="Password"
                 placeholder="At least 6 characters"
-                secureTextEntry
                 autoComplete="new-password"
+                textContentType="newPassword"
                 value={value}
                 onBlur={onBlur}
                 onChangeText={onChange}
+                accessibilityLabel="Password"
                 error={
                   typeof fieldState.error?.message === 'string'
                     ? fieldState.error.message
@@ -158,14 +170,15 @@ export default function SignupScreen() {
             control={form.control}
             name="confirmPassword"
             render={({ field: { onChange, onBlur, value }, fieldState }) => (
-              <Input
+              <PasswordInput
                 label="Confirm Password"
                 placeholder="Re-enter password"
-                secureTextEntry
                 autoComplete="new-password"
+                textContentType="newPassword"
                 value={value}
                 onBlur={onBlur}
                 onChangeText={onChange}
+                accessibilityLabel="Confirm password"
                 error={
                   typeof fieldState.error?.message === 'string'
                     ? fieldState.error.message
@@ -190,6 +203,12 @@ export default function SignupScreen() {
               index={1}
             />
           </View>
+
+          {role === 'business' ? (
+            <Text style={[styles.hint, { color: theme.textSecondary }]}>
+              {t('subscription.signup.body')}
+            </Text>
+          ) : null}
 
           {error ? (
             <Text style={styles.error} accessibilityLiveRegion="polite">

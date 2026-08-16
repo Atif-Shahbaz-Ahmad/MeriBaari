@@ -84,3 +84,36 @@ export function useDeleteOrganization() {
     },
   });
 }
+
+export function useUploadOrganizationLogo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      organizationId,
+      localUri,
+    }: {
+      organizationId: string;
+      localUri: string;
+    }) => getContainer().organizationService.uploadLogo(organizationId, localUri),
+    onSuccess: (org) => {
+      queryClient.setQueryData(organizationQueryKeys.mine, org);
+      queryClient.setQueryData(organizationQueryKeys.detail(org.id), org);
+      invalidateOrganizationQueries(queryClient);
+    },
+  });
+}
+
+export function useRemoveOrganizationLogo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (organizationId: string) =>
+      getContainer().organizationService.removeLogo(organizationId),
+    onSuccess: (org) => {
+      queryClient.setQueryData(organizationQueryKeys.mine, org);
+      queryClient.setQueryData(organizationQueryKeys.detail(org.id), org);
+      invalidateOrganizationQueries(queryClient);
+    },
+  });
+}

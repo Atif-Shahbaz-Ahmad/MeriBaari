@@ -13,15 +13,15 @@ export const departmentFormSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(2, 'Department name must be at least 2 characters.')
-    .max(80, 'Department name is too long.'),
-  description: z.string().trim().max(500, 'Description is too long.').optional(),
+    .min(2, 'validation.departmentNameMin')
+    .max(80, 'validation.departmentNameMax'),
+  description: z.string().trim().max(500, 'validation.descriptionMax').optional(),
   icon: iconSchema,
   isActive: z.boolean(),
   displayOrder: z
     .string()
     .trim()
-    .regex(/^\d+$/, 'Display order must be a whole number.'),
+    .regex(/^\d+$/, 'validation.displayOrder'),
 });
 
 export type DepartmentFormValues = z.infer<typeof departmentFormSchema>;
@@ -30,26 +30,26 @@ export const serviceFormSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(2, 'Service name must be at least 2 characters.')
-    .max(80, 'Service name is too long.'),
-  description: z.string().trim().max(500, 'Description is too long.').optional(),
+    .min(2, 'validation.serviceNameMin')
+    .max(80, 'validation.serviceNameMax'),
+  description: z.string().trim().max(500, 'validation.descriptionMax').optional(),
   durationMinutes: z
     .string()
     .trim()
-    .regex(/^[1-9]\d*$/, 'Duration must be greater than 0.'),
+    .regex(/^[1-9]\d*$/, 'validation.duration'),
   price: z
     .string()
     .trim()
     .refine(
       (value) => value === '' || (!Number.isNaN(Number(value)) && Number(value) >= 0),
-      'Price must be zero or greater.',
+      'validation.price',
     )
     .optional(),
   isActive: z.boolean(),
   displayOrder: z
     .string()
     .trim()
-    .regex(/^\d+$/, 'Display order must be a whole number.'),
+    .regex(/^\d+$/, 'validation.displayOrder'),
 });
 
 export type ServiceFormValues = z.infer<typeof serviceFormSchema>;

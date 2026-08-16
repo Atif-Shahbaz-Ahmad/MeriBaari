@@ -128,7 +128,7 @@ export const dataAccess = {
   groupTicketsByDate,
   isActiveStatus,
   computeTicketStatistics(tickets?: QueueTicket[]): TicketStatistics {
-    return computeTicketStatistics(tickets);
+    return computeTicketStatistics(tickets ?? []);
   },
 
   // Queue

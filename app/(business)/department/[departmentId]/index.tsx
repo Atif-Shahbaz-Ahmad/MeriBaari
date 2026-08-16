@@ -87,6 +87,7 @@ export default function DepartmentDetailsScreen() {
         <FlowHeader title="Department" onBack={() => router.back()} />
         <EmptyState
           title="Department not found"
+          description="This department may have been removed or is no longer available."
           actionLabel="Back"
           onActionPress={() => router.back()}
         />
@@ -224,8 +225,8 @@ export default function DepartmentDetailsScreen() {
                           styles.pill,
                           {
                             backgroundColor: service.isActive
-                              ? Colors.secondary50
-                              : Colors.error50,
+                              ? theme.tints.secondary.bg
+                              : theme.tints.error.bg,
                           },
                         ]}
                       >
@@ -233,8 +234,8 @@ export default function DepartmentDetailsScreen() {
                           style={{
                             ...Typography.caption,
                             color: service.isActive
-                              ? Colors.secondary600
-                              : Colors.error,
+                              ? theme.tints.secondary.fg
+                              : theme.tints.error.fg,
                           }}
                         >
                           {service.isActive ? 'Active' : 'Inactive'}
@@ -258,6 +259,16 @@ export default function DepartmentDetailsScreen() {
                         title={service.isActive ? 'Deactivate' : 'Activate'}
                         variant="ghost"
                         size="sm"
+                        loading={
+                          toggleService.isPending &&
+                          toggleService.variables?.id === service.id
+                        }
+                        disabled={
+                          (toggleService.isPending &&
+                            toggleService.variables?.id === service.id) ||
+                          (deleteService.isPending &&
+                            deleteService.variables === service.id)
+                        }
                         onPress={() => {
                           void toggleService.mutateAsync({
                             id: service.id,
@@ -270,6 +281,16 @@ export default function DepartmentDetailsScreen() {
                         title="Delete"
                         variant="ghost"
                         size="sm"
+                        loading={
+                          deleteService.isPending &&
+                          deleteService.variables === service.id
+                        }
+                        disabled={
+                          (deleteService.isPending &&
+                            deleteService.variables === service.id) ||
+                          (toggleService.isPending &&
+                            toggleService.variables?.id === service.id)
+                        }
                         onPress={() => {
                           Alert.alert(
                             'Delete service?',

@@ -1,14 +1,16 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
   ArrowLeftRight,
   Bell,
   Building2,
   CircleHelp,
+  History,
   Info,
   LogOut,
   Moon,
   Settings,
+  Star,
 } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
@@ -22,7 +24,12 @@ import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { AuthHref } from '@/features/auth/navigation';
-import { pushCreateOrganization, pushEditOrganization } from '@/features/business/navigation';
+import {
+  pushCreateOrganization,
+  pushEditOrganization,
+  pushOwnerHistory,
+  pushOwnerReviews,
+} from '@/features/business/navigation';
 import {
   pushAbout,
   pushHelp,
@@ -31,25 +38,32 @@ import {
   pushThemeSettings,
 } from '@/features/profile/navigation';
 import { useAuth } from '@/hooks/use-auth';
+import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/use-translation';
 import { dataAccess } from '@/data';
 import { useCurrentProfileQuery } from '@/features/profile/hooks/use-current-profile';
 import { useMyOrganization } from '@/features/organization/hooks/use-organizations';
-
-const MOCK_BUSINESS_PROFILE_STATS = dataAccess.MOCK_BUSINESS_PROFILE_STATS;
+import { useBusinessQueues } from '@/features/queue/hooks/use-queue-queries';
+import { useOrganizationServedToday } from '@/features/history/hooks/use-organization-served-today';
 
 export default function BusinessProfileScreen() {
-  const { user, profile, role, signOut, switchRole } = useAuth();
+  const theme = useTheme();
+  const { t } = useTranslation();
+  const { user, profile, role, signOut, switchRole, isLoading } = useAuth();
   useCurrentProfileQuery(Boolean(user?.id));
   const { data: organization } = useMyOrganization();
+  const { data: queues = [] } = useBusinessQueues(organization?.id);
+  const { data: servedToday = 0 } = useOrganizationServedToday(organization?.id);
 
   const displayName = profile?.fullName ?? user?.fullName;
   const displayEmail = profile?.email ?? user?.email;
   const displayPhone = profile?.phone ?? user?.phone;
   const displayAvatar = profile?.avatarUrl ?? user?.avatarUrl;
-  const memberSince =
-    profile?.createdAt ?? MOCK_BUSINESS_PROFILE_STATS.membershipSince;
+  const memberSince = profile?.createdAt ?? organization?.createdAt;
+  const activeQueueCount = queues.filter((q) => q.status === 'active').length;
 
   const onSignOut = async () => {
+    if (isLoading) return;
     await signOut();
     router.replace(AuthHref.welcome);
   };
@@ -75,62 +89,74 @@ export default function BusinessProfileScreen() {
         />
 
         <Animated.View entering={FadeInDown.delay(60).duration(400)} style={styles.padded}>
-          <Card style={styles.roleCard}>
-            <Text style={styles.roleLabel}>Current role</Text>
-            <Text style={styles.roleValue}>{dataAccess.getRoleDisplayLabel(role)}</Text>
+          <Card style={[styles.roleCard, { backgroundColor: theme.tints.primary.bg, borderColor: theme.tints.primary.border }]}>
+            <Text style={[styles.roleLabel, { color: theme.tints.primary.fg }]}>{t('profile.currentRole')}</Text>
+            <Text style={[styles.roleValue, { color: theme.tints.primary.fg }]}>{dataAccess.getRoleDisplayLabel(role)}</Text>
           </Card>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.padded}>
           <View style={styles.stats}>
             <StatisticCard
-              label="Active Queues"
-              value={String(MOCK_BUSINESS_PROFILE_STATS.activeQueues)}
+              label={t('profile.activeQueues')}
+              value={String(activeQueueCount)}
             />
             <StatisticCard
-              label="Served Today"
-              value={String(MOCK_BUSINESS_PROFILE_STATS.customersServedToday)}
+              label={t('profile.servedToday')}
+              value={String(servedToday)}
             />
           </View>
         </Animated.View>
 
         <View style={styles.padded}>
-          <SettingsGroup title="Account" index={0}>
+          <SettingsGroup title={t('profile.account')} index={0}>
             <SettingsItem
               icon={<Building2 size={18} color={Colors.primary} />}
-              label="My Organization"
+              label={t('profile.myOrganization')}
               description={
                 organization
                   ? organization.name
-                  : 'Create or manage your business'
+                  : t('profile.myOrganizationHint')
               }
               onPress={
                 organization ? pushEditOrganization : pushCreateOrganization
               }
             />
             <SettingsItem
+              icon={<History size={18} color={Colors.primary} />}
+              label={t('profile.history')}
+              description={t('profile.historyHint')}
+              onPress={pushOwnerHistory}
+            />
+            <SettingsItem
+              icon={<Star size={18} color={Colors.secondary} />}
+              label={t('profile.reviews')}
+              description={t('profile.reviewsHint')}
+              onPress={pushOwnerReviews}
+            />
+            <SettingsItem
               icon={<Settings size={18} color={Colors.primary} />}
-              label="Settings"
+              label={t('profile.settings')}
               onPress={pushSettings}
             />
             <SettingsItem
               icon={<Bell size={18} color={Colors.primary} />}
-              label="Notifications"
+              label={t('profile.notificationPreferences')}
               onPress={pushNotificationSettings}
             />
             <SettingsItem
               icon={<Moon size={18} color={Colors.primary} />}
-              label="Theme"
+              label={t('profile.theme')}
               onPress={pushThemeSettings}
             />
             <SettingsItem
               icon={<CircleHelp size={18} color={Colors.primary} />}
-              label="Help & Support"
+              label={t('profile.help')}
               onPress={pushHelp}
             />
             <SettingsItem
               icon={<Info size={18} color={Colors.primary} />}
-              label="About MeriBaari"
+              label={t('profile.about')}
               onPress={pushAbout}
               showDivider={false}
             />
@@ -140,11 +166,11 @@ export default function BusinessProfileScreen() {
         {/* DEV ONLY — remove before production */}
         {__DEV__ ? (
           <View style={styles.padded}>
-            <SettingsGroup title="Developer" index={1}>
+            <SettingsGroup title={t('profile.developer')} index={1}>
               <SettingsItem
                 icon={<ArrowLeftRight size={18} color={Colors.accent} />}
-                label="Switch Role"
-                description="DEV: jump to Customer app"
+                label={t('profile.switchRole')}
+                description={t('profile.switchRoleCustomer')}
                 onPress={() => void onDevSwitchRole()}
                 showDivider={false}
               />
@@ -155,12 +181,23 @@ export default function BusinessProfileScreen() {
         <Animated.View entering={FadeInDown.delay(200).duration(400)} style={styles.padded}>
           <Pressable
             onPress={() => void onSignOut()}
-            style={[styles.logout, { backgroundColor: Colors.error50 }]}
+            disabled={isLoading}
+            style={[
+              styles.logout,
+              { backgroundColor: theme.tints.error.bg, opacity: isLoading ? 0.6 : 1 },
+            ]}
             accessibilityRole="button"
-            accessibilityLabel="Sign out"
+            accessibilityLabel={t('profile.signOutA11y')}
+            accessibilityState={{ disabled: isLoading, busy: isLoading }}
           >
-            <LogOut size={18} color={Colors.error} />
-            <Text style={styles.logoutText}>Logout</Text>
+            {isLoading ? (
+              <ActivityIndicator color={Colors.error} />
+            ) : (
+              <LogOut size={18} color={Colors.error} />
+            )}
+            <Text style={styles.logoutText}>
+              {isLoading ? t('common.signingOut') : t('common.signOut')}
+            </Text>
           </Pressable>
         </Animated.View>
       </ScrollView>
@@ -180,16 +217,12 @@ const styles = StyleSheet.create({
   roleCard: {
     alignItems: 'center',
     gap: Spacing.xs,
-    backgroundColor: Colors.primary50,
-    borderColor: Colors.primary100,
   },
   roleLabel: {
     ...Typography.caption,
-    color: Colors.primary700,
   },
   roleValue: {
     ...Typography.h3,
-    color: Colors.primary,
   },
   stats: {
     flexDirection: 'row',

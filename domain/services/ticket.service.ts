@@ -1,5 +1,6 @@
 import type {
   JoinQueueInput,
+  TicketHistoryListParams,
   TicketRepository,
 } from '@/domain/repositories';
 import type { QueueTicket, TicketStatus } from '@/domain/models';
@@ -42,6 +43,17 @@ export class TicketService {
 
   listHistory(tickets?: QueueTicket[]) {
     return this.tickets.listHistory(tickets);
+  }
+
+  listMyHistory(params?: TicketHistoryListParams) {
+    return this.tickets.listMyHistory(params);
+  }
+
+  listOrganizationHistory(
+    organizationId: string,
+    params?: TicketHistoryListParams,
+  ) {
+    return this.tickets.listOrganizationHistory(organizationId, params);
   }
 
   getPrimaryActive(tickets?: QueueTicket[]) {
@@ -99,6 +111,10 @@ export class TicketService {
 
   getStatistics(tickets?: QueueTicket[]) {
     return this.tickets.getStatistics(tickets);
+  }
+
+  countOrganizationServedToday(organizationId: string) {
+    return this.tickets.countOrganizationServedToday(organizationId);
   }
 
   getQrTicket(ticketId: string) {

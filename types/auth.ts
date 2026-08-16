@@ -5,7 +5,7 @@ export type AuthMethod = 'phone' | 'email' | 'google' | 'demo';
  * (e.g. 'staff' | 'manager' | 'admin') without refactoring navigation.
  * Source of truth: Supabase `profiles.role` (mock only when env is unset).
  */
-export type UserRole = 'customer' | 'business';
+export type UserRole = 'customer' | 'business' | 'admin';
 
 export interface AuthUser {
   id: string;

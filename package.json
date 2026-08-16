@@ -1,15 +1,26 @@
 {
   "name": "meribaari",
-  "main": "expo-router/entry",
+  "main": "index.js",
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web",
+    "expo:web": "expo start --web",
     "lint": "expo lint",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "web": "npm run dev --prefix web",
+    "web:build": "npm run build --prefix web",
+    "web:lint": "npm run lint --prefix web",
+    "web:typecheck": "npm run typecheck --prefix web",
+    "desktop": "npm run tauri --prefix desktop -- dev",
+    "desktop:dev": "npm run tauri --prefix desktop -- dev",
+    "desktop:build": "npm run tauri --prefix desktop -- build",
+    "desktop:typecheck": "npm run typecheck --prefix desktop",
+    "android:preview": "npx eas-cli build --profile preview --platform android",
+    "android:apk": "node scripts/build-android-apk.js",
+    "ios:preview": "npx eas-cli build --profile preview --platform ios"
   },
   "dependencies": {
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
@@ -22,15 +33,23 @@
     "@tanstack/react-query": "^5.101.4",
     "babel-preset-expo": "~54.0.10",
     "expo": "~54.0.35",
+    "expo-asset": "~12.0.13",
+    "expo-audio": "~1.1.1",
     "expo-auth-session": "~7.0.11",
+    "expo-build-properties": "~1.0.10",
+    "expo-clipboard": "~8.0.8",
     "expo-constants": "~18.0.13",
     "expo-dev-client": "~6.0.21",
     "expo-device": "~8.0.10",
+    "expo-file-system": "~19.0.23",
     "expo-font": "~14.0.12",
     "expo-haptics": "~15.0.8",
     "expo-image": "~3.0.11",
+    "expo-image-manipulator": "~14.0.8",
+    "expo-image-picker": "~17.0.11",
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.12",
+    "expo-location": "~19.0.8",
     "expo-notifications": "~0.32.17",
     "expo-router": "~6.0.24",
     "expo-secure-store": "~15.0.8",
@@ -66,5 +85,18 @@
     "supabase": "^2.113.0",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "expo-asset": "~12.0.13"
+  },
+  "expo": {
+    "autolinking": {
+      "exclude": [
+        "expo-dev-client",
+        "expo-dev-launcher",
+        "expo-dev-menu",
+        "expo-dev-menu-interface"
+      ]
+    }
+  }
 }

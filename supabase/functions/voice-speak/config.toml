@@ -1,0 +1,5 @@
+# Shared voice TTS. Invoked by the signed-in mobile client (JWT required).
+# Secrets (npx supabase secrets set): DEEPGRAM_API_KEY, AZURE_SPEECH_KEY, AZURE_SPEECH_REGION
+# Optional: AZURE_SPEECH_VOICE=ur-PK-UzmaNeural, DEEPGRAM_TTS_MODEL=aura-2-thalia-en
+# Does not call Gemini. Does not store audio. Speaks only the assistant's main message.
+verify_jwt = true

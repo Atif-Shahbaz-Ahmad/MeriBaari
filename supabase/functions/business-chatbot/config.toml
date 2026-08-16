@@ -1,0 +1,4 @@
+# Business-owner AI assistant. Invoked by the signed-in mobile client (JWT required).
+# GEMINI_API_KEY must be set with: npx supabase secrets set GEMINI_API_KEY=...
+# Wall-clock budget is 50s in the function; the mobile client waits 55s.
+verify_jwt = true

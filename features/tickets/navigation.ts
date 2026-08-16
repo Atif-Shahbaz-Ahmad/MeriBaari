@@ -22,6 +22,10 @@ export function pushTicketHistory() {
   router.push(TicketHref.history);
 }
 
+export function pushRateTicket(ticketId: string) {
+  router.push(`/tickets/${ticketId}/rate` as Href);
+}
+
 export function replaceTicketDetail(id: string) {
   router.replace(TicketHref.detail(id));
 }

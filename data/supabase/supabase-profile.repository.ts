@@ -8,7 +8,7 @@ import type { Unsubscribe, SubscribeCallback } from '@/domain/repositories/types
 import { AuthError, toAuthError } from '@/domain/errors/auth-error';
 import { mapProfileRow } from '@/data/supabase/mappers';
 import { noopSubscribe } from '@/data/mock/noop-subscribe';
-import { isUserRole } from '@/features/auth/roles';
+import { isSelectableRole } from '@/features/auth/roles';
 import { requireSupabase } from '@/lib/supabase';
 import type { UserRole } from '@/types/auth';
 
@@ -115,7 +115,7 @@ export class SupabaseProfileRepository implements ProfileRepository {
       if (input.email !== undefined) patch.email = input.email;
       if (avatarUrl !== undefined) patch.avatar_url = avatarUrl;
       if (input.role !== undefined) {
-        if (input.role !== null && !isUserRole(input.role)) {
+        if (input.role !== null && !isSelectableRole(input.role)) {
           throw new AuthError(
             'unauthorized',
             'Invalid role. Only customer or business is allowed.',

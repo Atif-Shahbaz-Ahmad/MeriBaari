@@ -1,6 +1,7 @@
 export * from '@/components/ui/Button';
 export * from '@/components/ui/Card';
 export * from '@/components/ui/Input';
+export * from '@/components/ui/PasswordInput';
 export * from '@/components/ui/Section';
 export * from '@/components/ui/Avatar';
 export * from '@/components/ui/StatusBadge';
@@ -27,5 +28,7 @@ export * from '@/components/buttons/QuickActionButton';
 export * from '@/components/buttons/PrimaryButton';
 export * from '@/components/business';
 export * from '@/components/layout/Screen';
+export * from '@/components/layout/KeyboardForm';
 export * from '@/components/layout/Logo';
 export * from '@/components/layout/LogoMark';
+export * from '@/components/chatbot';

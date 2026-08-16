@@ -50,7 +50,7 @@ export class MockCatalogRepository implements CatalogRepository {
   }
 
   async getAbout(): Promise<AboutContent> {
-    return { ...MOCK_ABOUT, team: [...MOCK_ABOUT.team], social: [...MOCK_ABOUT.social], technologies: [...MOCK_ABOUT.technologies] };
+    return { ...MOCK_ABOUT, team: [...MOCK_ABOUT.team], technologies: [...MOCK_ABOUT.technologies] };
   }
 
   async getSettingsGroups(): Promise<SettingsGroupDefinition[]> {
@@ -60,7 +60,7 @@ export class MockCatalogRepository implements CatalogRepository {
     }));
   }
 
-  async getRoleCardCopy(): Promise<Record<UserRole, RoleCardCopy>> {
+  async getRoleCardCopy(): Promise<Record<'customer' | 'business', RoleCardCopy>> {
     return { ...ROLE_CARD_COPY };
   }
 

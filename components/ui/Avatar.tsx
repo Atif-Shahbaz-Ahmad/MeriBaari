@@ -1,7 +1,7 @@
 import { Image, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
-import { Colors } from '@/constants/colors';
 import { Typography } from '@/constants/typography';
+import { useTheme } from '@/hooks/use-theme';
 
 interface AvatarProps {
   name?: string | null;
@@ -11,6 +11,7 @@ interface AvatarProps {
 }
 
 export function Avatar({ name, uri, size = 48, style }: AvatarProps) {
+  const theme = useTheme();
   const initials = getInitials(name);
 
   return (
@@ -21,6 +22,8 @@ export function Avatar({ name, uri, size = 48, style }: AvatarProps) {
           width: size,
           height: size,
           borderRadius: size / 2,
+          backgroundColor: theme.tints.primary.bgStrong,
+          borderColor: theme.tints.primary.bg,
         },
         style,
       ]}
@@ -34,7 +37,7 @@ export function Avatar({ name, uri, size = 48, style }: AvatarProps) {
           accessibilityIgnoresInvertColors
         />
       ) : (
-        <Text style={[styles.initials, { fontSize: Math.max(12, size * 0.36) }]} importantForAccessibility="no">
+        <Text style={[styles.initials, { fontSize: Math.max(12, size * 0.36), color: theme.tints.primary.fg }]} importantForAccessibility="no">
           {initials}
         </Text>
       )}
@@ -51,15 +54,12 @@ function getInitials(name?: string | null) {
 
 const styles = StyleSheet.create({
   base: {
-    backgroundColor: Colors.primary100,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: Colors.primary50,
   },
   initials: {
     ...Typography.bodyMedium,
-    color: Colors.primary,
   },
 });

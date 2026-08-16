@@ -2,6 +2,7 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "resolveJsonModule": true,
     "baseUrl": ".",
     "paths": {
       "@/*": ["./*"]
@@ -15,6 +16,8 @@
     "nativewind-env.d.ts"
   ],
   "exclude": [
-    "supabase/functions/**"
+    "supabase/functions/**",
+    "web",
+    "desktop"
   ]
 }

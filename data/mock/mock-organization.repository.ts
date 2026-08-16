@@ -1,4 +1,5 @@
 import type { Organization, OrganizationMember } from '@/domain/models';
+import { isOrganizationPublic } from '@/domain/models';
 import type {
   OrganizationCreateInput,
   OrganizationRepository,
@@ -18,6 +19,7 @@ import {
   MOCK_ORGANIZATIONS,
   searchOrganizations,
 } from '@/mock/organizations';
+import { MOCK_SERVICES } from '@/mock/services';
 import { toDomainOrganization } from '@/data/mappers/domain-mappers';
 import { noopSubscribe } from './noop-subscribe';
 
@@ -65,18 +67,32 @@ export class MockOrganizationRepository implements OrganizationRepository {
       params.category ?? 'all',
     ).map(toDomainOrganization);
 
+    const q = params.query?.trim().toLowerCase() ?? '';
+    const serviceOrgIds = q
+      ? new Set(
+          MOCK_SERVICES.filter(
+            (s) =>
+              s.name.toLowerCase().includes(q) ||
+              (s.description?.toLowerCase().includes(q) ?? false),
+          ).map((s) => s.organizationId),
+        )
+      : null;
+
     const created = [...(this.owned ? [this.owned] : []), ...this.extras].filter(
       (org) => {
-        if (params.activeOnly !== false && !org.isActive) return false;
+        if (params.activeOnly !== false) {
+          if (!isOrganizationPublic(org)) return false;
+        }
         if (params.category && params.category !== 'all') {
           if (org.category !== params.category) return false;
         }
-        const q = params.query?.trim().toLowerCase() ?? '';
         if (!q) return true;
         return (
           org.name.toLowerCase().includes(q) ||
           org.description.toLowerCase().includes(q) ||
-          org.city.toLowerCase().includes(q)
+          org.city.toLowerCase().includes(q) ||
+          org.address.toLowerCase().includes(q) ||
+          Boolean(serviceOrgIds?.has(org.id))
         );
       },
     );
@@ -85,7 +101,44 @@ export class MockOrganizationRepository implements OrganizationRepository {
     for (const org of [...seed, ...created]) {
       byId.set(org.id, org);
     }
+
+    // Include seed orgs matched only via services (searchOrganizations may miss them).
+    if (serviceOrgIds) {
+      for (const orgId of serviceOrgIds) {
+        if (byId.has(orgId)) continue;
+        const org = await this.getOrganizationById(orgId);
+        if (!org) continue;
+        if (params.activeOnly !== false && !isOrganizationPublic(org)) continue;
+        if (
+          params.category &&
+          params.category !== 'all' &&
+          org.category !== params.category
+        ) {
+          continue;
+        }
+        byId.set(org.id, org);
+      }
+    }
+
     return Array.from(byId.values());
+  }
+
+  async getStartingPrices(
+    organizationIds: string[],
+  ): Promise<Record<string, number>> {
+    const wanted = new Set(organizationIds);
+    const result: Record<string, number> = {};
+    for (const service of MOCK_SERVICES) {
+      if (!wanted.has(service.organizationId)) continue;
+      const price =
+        typeof service.price === 'number' ? service.price : undefined;
+      if (price == null) continue;
+      const current = result[service.organizationId];
+      if (current == null || price < current) {
+        result[service.organizationId] = price;
+      }
+    }
+    return result;
   }
 
   async getMyOrganization(): Promise<Organization | null> {
@@ -119,8 +172,16 @@ export class MockOrganizationRepository implements OrganizationRepository {
       latitude: data.latitude ?? null,
       longitude: data.longitude ?? null,
       averageWaitTime: 0,
-      isActive: true,
-      status: 'active',
+      isActive: false,
+      status: 'inactive',
+      subscriptionStatus: 'draft',
+      approvedAt: null,
+      approvedBy: null,
+      subscriptionSubmittedAt: null,
+      paymentRejectionReason: null,
+      adminHidden: false,
+      adminHiddenReason: null,
+      adminHiddenAt: null,
       workingHours: data.workingHours?.trim() ?? '',
       createdAt: now,
       updatedAt: now,
@@ -228,6 +289,41 @@ export class MockOrganizationRepository implements OrganizationRepository {
 
   async activateOrganization(id: string): Promise<Organization> {
     return this.updateOrganization(id, { isActive: true, status: 'active' });
+  }
+
+  applySubscriptionStatus(
+    status: Organization['subscriptionStatus'],
+    extra: Partial<Organization> = {},
+  ): Organization | null {
+    if (!this.owned) return null;
+    const now = new Date().toISOString();
+    const live = status === 'active';
+    this.owned = {
+      ...this.owned,
+      ...extra,
+      subscriptionStatus: status,
+      isActive: live ? true : false,
+      status: live ? 'active' : 'inactive',
+      updatedAt: now,
+    };
+    return this.owned;
+  }
+
+  applyAdminVisibility(
+    organizationId: string,
+    visible: boolean,
+    reason?: string,
+  ): Organization | null {
+    if (!this.owned || this.owned.id !== organizationId) return null;
+    const now = new Date().toISOString();
+    this.owned = {
+      ...this.owned,
+      adminHidden: !visible,
+      adminHiddenReason: visible ? null : reason?.trim() || null,
+      adminHiddenAt: visible ? null : now,
+      updatedAt: now,
+    };
+    return this.owned;
   }
 
   async listMembers(organizationId: string): Promise<OrganizationMember[]> {

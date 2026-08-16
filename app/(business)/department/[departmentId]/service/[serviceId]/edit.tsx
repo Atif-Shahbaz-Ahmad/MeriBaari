@@ -94,7 +94,10 @@ export default function EditServiceScreen() {
     return (
       <Screen>
         <FlowHeader title="Edit Service" onBack={() => router.back()} />
-        <EmptyState title="Service not found" />
+        <EmptyState
+          title="Service not found"
+          description="This service may have been removed or is no longer available."
+        />
       </Screen>
     );
   }
@@ -129,11 +132,12 @@ export default function EditServiceScreen() {
     <Screen padded={false} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
           <Animated.View entering={FadeInDown.duration(400)} style={styles.padded}>

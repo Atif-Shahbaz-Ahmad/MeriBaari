@@ -14,6 +14,10 @@
       "infoPlist": {
         "UIBackgroundModes": [
           "remote-notification"
+        ],
+        "LSApplicationQueriesSchemes": [
+          "maps",
+          "comgooglemaps"
         ]
       }
     },
@@ -26,6 +30,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
+      "softwareKeyboardLayoutMode": "resize",
       "package": "app.meribaari.mobile",
       "googleServicesFile": "./google-services.json"
     },
@@ -38,6 +43,18 @@
       "expo-router",
       "expo-secure-store",
       "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow MeriBaari to access your photos so you can set a profile picture."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow MeriBaari to use your location to show nearby businesses and distances."
+        }
+      ],
       [
         "expo-notifications",
         {
@@ -55,6 +72,26 @@
           "backgroundColor": "#F8FAFC",
           "dark": {
             "backgroundColor": "#0F172A"
+          }
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow MeriBaari to use the microphone so you can talk to the assistant.",
+          "recordAudioAndroid": true
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "buildArchs": ["arm64-v8a"],
+            "enableMinifyInReleaseBuilds": false,
+            "enableShrinkResourcesInReleaseBuilds": false,
+            "enableBundleCompression": false,
+            "useLegacyPackaging": false,
+            "networkInspector": false
           }
         }
       ]

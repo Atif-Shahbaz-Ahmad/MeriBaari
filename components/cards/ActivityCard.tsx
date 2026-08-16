@@ -1,20 +1,20 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { BellRing, CheckCircle2, Ticket, XCircle } from 'lucide-react-native';
+import {
+  BellRing,
+  CheckCircle2,
+  PauseCircle,
+  PlayCircle,
+  Ticket,
+  Timer,
+  XCircle,
+} from 'lucide-react-native';
 
 import { Card } from '@/components/ui/Card';
-import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
 import { formatRelativeTime } from '@/utils/formatting';
 import type { ActivityItem } from '@/types';
-
-const TYPE_STYLE = {
-  joined: { icon: Ticket, color: Colors.primary, bg: Colors.primary50 },
-  completed: { icon: CheckCircle2, color: Colors.secondary, bg: Colors.secondary50 },
-  reminder: { icon: BellRing, color: Colors.accent, bg: Colors.accent50 },
-  cancelled: { icon: XCircle, color: Colors.error, bg: Colors.error50 },
-} as const;
 
 interface ActivityCardProps {
   item: ActivityItem;
@@ -22,7 +22,19 @@ interface ActivityCardProps {
 
 export function ActivityCard({ item }: ActivityCardProps) {
   const theme = useTheme();
-  const config = TYPE_STYLE[item.type];
+  const typeStyle = {
+    joined: { icon: Ticket, color: theme.tints.primary.fg, bg: theme.tints.primary.bg },
+    called: { icon: BellRing, color: theme.tints.primary.fg, bg: theme.tints.primary.bg },
+    serving: { icon: Timer, color: theme.tints.accent.fg, bg: theme.tints.accent.bg },
+    completed: { icon: CheckCircle2, color: theme.tints.secondary.fg, bg: theme.tints.secondary.bg },
+    skipped: { icon: XCircle, color: theme.tints.error.fg, bg: theme.tints.error.bg },
+    paused: { icon: PauseCircle, color: theme.tints.accent.fg, bg: theme.tints.accent.bg },
+    resumed: { icon: PlayCircle, color: theme.tints.secondary.fg, bg: theme.tints.secondary.bg },
+    closed: { icon: XCircle, color: theme.tints.error.fg, bg: theme.tints.error.bg },
+    reminder: { icon: BellRing, color: theme.tints.accent.fg, bg: theme.tints.accent.bg },
+    cancelled: { icon: XCircle, color: theme.tints.error.fg, bg: theme.tints.error.bg },
+  } as const;
+  const config = typeStyle[item.type];
   const Icon = config.icon;
 
   return (

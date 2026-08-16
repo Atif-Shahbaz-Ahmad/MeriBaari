@@ -84,11 +84,16 @@ export function useAuth() {
   const signup = useAuthStore((s) => s.signup);
   const signInWithGoogle = useAuthStore((s) => s.signInWithGoogle);
   const resetPassword = useAuthStore((s) => s.resetPassword);
+  const updatePassword = useAuthStore((s) => s.updatePassword);
+  const clearPasswordRecovery = useAuthStore((s) => s.clearPasswordRecovery);
+  const passwordRecoveryPending = useAuthStore((s) => s.passwordRecoveryPending);
   const resendSignupEmail = useAuthStore((s) => s.resendSignupEmail);
   const clearPendingVerification = useAuthStore((s) => s.clearPendingVerification);
   const refreshSession = useAuthStore((s) => s.refreshSession);
   const refreshProfile = useAuthStore((s) => s.refreshProfile);
   const updateProfile = useAuthStore((s) => s.updateProfile);
+  const uploadAvatar = useAuthStore((s) => s.uploadAvatar);
+  const removeAvatar = useAuthStore((s) => s.removeAvatar);
   const signInWithDemo = useAuthStore((s) => s.signInWithDemo);
   const setRole = useAuthStore((s) => s.setRole);
   const switchRole = useAuthStore((s) => s.switchRole);
@@ -105,6 +110,7 @@ export function useAuth() {
     isProfileLoading,
     isRestoringSession,
     profileLoadFailed,
+    passwordRecoveryPending,
     error,
     needsEmailVerification,
     pendingVerificationEmail,
@@ -117,11 +123,15 @@ export function useAuth() {
     signup,
     signInWithGoogle,
     resetPassword,
+    updatePassword,
+    clearPasswordRecovery,
     resendSignupEmail,
     clearPendingVerification,
     refreshSession,
     refreshProfile,
     updateProfile,
+    uploadAvatar,
+    removeAvatar,
     signInWithDemo,
     setRole,
     switchRole,

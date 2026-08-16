@@ -25,17 +25,21 @@ export {
  * Native-only — web does not implement these Notification APIs.
  */
 if (Platform.OS === 'ios' || Platform.OS === 'android') {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => {
-      const inForeground = AppState.currentState === 'active';
-      return {
-        shouldShowBanner: !inForeground,
-        shouldShowList: !inForeground,
-        shouldPlaySound: !inForeground,
-        shouldSetBadge: true,
-      };
-    },
-  });
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => {
+        const inForeground = AppState.currentState === 'active';
+        return {
+          shouldShowBanner: !inForeground,
+          shouldShowList: !inForeground,
+          shouldPlaySound: !inForeground,
+          shouldSetBadge: true,
+        };
+      },
+    });
+  } catch {
+    // Native module may be unavailable in some release packaging; never crash startup.
+  }
 }
 
 export async function ensureMeriBaariNotificationChannel(): Promise<void> {

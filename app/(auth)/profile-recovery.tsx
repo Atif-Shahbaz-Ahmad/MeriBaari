@@ -17,7 +17,7 @@ import { useAuthStore } from '@/store/auth-store';
 export default function ProfileRecoveryScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { refreshProfile, logout, isProfileLoading, error } = useAuth();
+  const { refreshProfile, logout, isProfileLoading, isLoading, error } = useAuth();
 
   const onRetry = async () => {
     try {
@@ -32,6 +32,7 @@ export default function ProfileRecoveryScreen() {
   };
 
   const onLogout = async () => {
+    if (isLoading) return;
     await logout();
     router.replace(AuthHref.welcome);
   };
@@ -57,7 +58,13 @@ export default function ProfileRecoveryScreen() {
         onRetry={() => void onRetry()}
         retryLabel={isProfileLoading ? 'Loading…' : 'Retry'}
       />
-      <Button title="Log out" variant="ghost" onPress={() => void onLogout()} />
+      <Button
+        title="Log out"
+        variant="ghost"
+        loading={isLoading}
+        disabled={isProfileLoading}
+        onPress={() => void onLogout()}
+      />
     </View>
   );
 }

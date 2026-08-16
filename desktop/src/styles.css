@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --mb-bg: 248 250 252;
+  --mb-card: 255 255 255;
+  --mb-input: 255 255 255;
+  --mb-text: 15 23 42;
+  --mb-text-secondary: 100 116 139;
+  --mb-text-muted: 148 163 184;
+  --mb-border: 226 232 240;
+  --font-jakarta: 'Plus Jakarta Sans';
+}
+
+.dark {
+  --mb-bg: 15 23 42;
+  --mb-card: 30 41 59;
+  --mb-input: 39 53 73;
+  --mb-text: 255 255 255;
+  --mb-text-secondary: 148 163 184;
+  --mb-text-muted: 100 116 139;
+  --mb-border: 51 65 85;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: rgb(var(--mb-bg));
+  color: rgb(var(--mb-text));
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+*:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+dialog {
+  background: rgb(var(--mb-card));
+  color: rgb(var(--mb-text));
+}

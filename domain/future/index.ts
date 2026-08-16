@@ -1,7 +1,8 @@
 /**
  * Placeholder interfaces for future platform capabilities.
  * Realtime is implemented for queues/tickets (Prompt 4.6).
- * Push registration is implemented (Prompt 4.8); QR / storage remain stubs.
+ * Push registration is implemented (Prompt 4.8).
+ * Avatar storage is implemented via FileStorageService (Supabase Storage / mock).
  */
 
 export type Unsubscribe = () => void;
@@ -82,16 +83,29 @@ export interface PushNotificationService {
   getCachedToken(): string | null;
 }
 
-/** QR code generation & validation for tickets. */
-export interface QrValidationService {
-  generatePayload(ticketId: string): Promise<string>;
-  validate(payload: string): Promise<{ valid: boolean; ticketId?: string }>;
-}
-
 /** Avatar / org logo storage (Supabase Storage). */
 export interface FileStorageService {
+  /**
+   * Optimize + upload an avatar.
+   * Returns a public URL suitable for `profiles.avatar_url`.
+   */
   uploadAvatar(userId: string, uri: string): Promise<string>;
+  /** Delete the user's avatar object from storage (idempotent). */
+  removeAvatar(userId: string, avatarUrl?: string | null): Promise<void>;
+  /** Optimize + upload org logo → public URL for `organizations.logo_url`. */
   uploadOrganizationLogo(organizationId: string, uri: string): Promise<string>;
+  /** Delete org logo object from storage (idempotent). */
+  removeOrganizationLogo(
+    organizationId: string,
+    logoUrl?: string | null,
+  ): Promise<void>;
+  /**
+   * Optimize + upload a private payment screenshot.
+   * Returns the storage object path (never a public URL).
+   */
+  uploadPaymentProof(userId: string, uri: string): Promise<string>;
+  /** Time-limited signed URL for a private payment-proof object. */
+  createPaymentProofSignedUrl(path: string, expiresInSeconds?: number): Promise<string | null>;
   getPublicUrl(path: string): string;
 }
 
@@ -154,27 +168,33 @@ export class UnimplementedPushNotificationService
   }
 }
 
-export class UnimplementedQrValidationService implements QrValidationService {
-  async generatePayload(ticketId: string) {
-    return `meribaari://ticket/${ticketId}`;
-  }
-  async validate(payload: string) {
-    const match = /^meribaari:\/\/ticket\/(.+)$/.exec(payload);
-    return match
-      ? { valid: true, ticketId: match[1] }
-      : { valid: false };
-  }
-}
-
 export class UnimplementedFileStorageService implements FileStorageService {
   async uploadAvatar(_userId: string, _uri: string): Promise<string> {
     throw new Error('File storage is not configured yet.');
+  }
+  async removeAvatar(_userId: string, _avatarUrl?: string | null): Promise<void> {
+    /* no-op */
   }
   async uploadOrganizationLogo(
     _organizationId: string,
     _uri: string,
   ): Promise<string> {
     throw new Error('File storage is not configured yet.');
+  }
+  async removeOrganizationLogo(
+    _organizationId: string,
+    _logoUrl?: string | null,
+  ): Promise<void> {
+    /* no-op */
+  }
+  async uploadPaymentProof(_userId: string, _uri: string): Promise<string> {
+    throw new Error('File storage is not configured yet.');
+  }
+  async createPaymentProofSignedUrl(
+    _path: string,
+    _expiresInSeconds?: number,
+  ): Promise<string | null> {
+    return null;
   }
   getPublicUrl(path: string) {
     return path;

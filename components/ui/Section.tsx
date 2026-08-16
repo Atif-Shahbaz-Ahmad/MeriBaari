@@ -33,7 +33,7 @@ export function Section({
           ) : null}
         </View>
         {actionLabel ? (
-          <Text style={styles.action} onPress={onActionPress}>
+          <Text style={[styles.action, { color: theme.primary }]} onPress={onActionPress}>
             {actionLabel}
           </Text>
         ) : null}
@@ -66,7 +66,6 @@ const styles = StyleSheet.create({
   },
   action: {
     ...Typography.small,
-    color: '#2563EB',
     paddingTop: 2,
   },
 });

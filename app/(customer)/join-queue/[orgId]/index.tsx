@@ -1,5 +1,6 @@
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useMemo, useState } from 'react';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
   Building2,
@@ -15,8 +16,10 @@ import {
 } from 'lucide-react-native';
 
 import { PrimaryButton } from '@/components/buttons/PrimaryButton';
+import { FavoriteToggleButton } from '@/components/buttons/FavoriteToggleButton';
 import { DepartmentCard } from '@/components/cards/DepartmentCard';
 import { Screen } from '@/components/layout/Screen';
+import { LocationMapPreview } from '@/components/organization/LocationMapPreview';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
@@ -24,16 +27,27 @@ import { FlowHeader } from '@/components/ui/FlowHeader';
 import { InfoRow } from '@/components/ui/InfoRow';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { SectionHeader } from '@/components/ui/SectionHeader';
-import { getOrganizationCategoryLabel } from '@/constants/organization-categories';
+import { organizationCategoryLabelKey } from '@/constants/organization-categories';
 import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { getOrganizationErrorMessage } from '@/domain/errors/organization-error';
+import {
+  useIsFavorite,
+  useToggleFavorite,
+} from '@/features/favorites/hooks/use-favorites';
 import { useOrganization } from '@/features/organization/hooks/use-organizations';
+import { useUserLocation } from '@/features/search/hooks/use-user-location';
 import { useDepartments } from '@/features/structure/hooks/use-structure-queries';
 import { pushDepartments, pushServices, replaceJoinQueueList } from '@/features/queue/navigation';
+import {
+  formatDistanceKm,
+  haversineKm,
+  hasValidCoords,
+} from '@/lib/geo';
 import { useJoinQueueStore } from '@/store/join-queue-store';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/use-translation';
 import { formatWaitTime } from '@/utils/formatting';
 
 const LOGO_ICONS = {
@@ -49,6 +63,7 @@ const LOGO_ICONS = {
 
 export default function OrganizationDetailsScreen() {
   const theme = useTheme();
+  const { t } = useTranslation();
   const { orgId } = useLocalSearchParams<{ orgId: string }>();
   const selectOrganization = useJoinQueueStore((s) => s.selectOrganization);
   const selectDepartment = useJoinQueueStore((s) => s.selectDepartment);
@@ -63,6 +78,26 @@ export default function OrganizationDetailsScreen() {
     data: departments = [],
     isLoading: departmentsLoading,
   } = useDepartments(orgId, { activeOnly: true });
+  const { isFavorite } = useIsFavorite(orgId);
+  const toggleFavorite = useToggleFavorite();
+  const [favoriteBusy, setFavoriteBusy] = useState(false);
+  const location = useUserLocation({ autoRequest: true });
+
+  const distanceKm = useMemo(() => {
+    if (!organization) return null;
+    if (location.coords && hasValidCoords(organization.latitude, organization.longitude)) {
+      return (
+        Math.round(
+          haversineKm(location.coords, {
+            latitude: organization.latitude,
+            longitude: organization.longitude!,
+          }) * 10,
+        ) / 10
+      );
+    }
+    if (organization.distanceKm > 0) return organization.distanceKm;
+    return null;
+  }, [organization, location.coords]);
 
   if (isLoading || departmentsLoading) {
     return (
@@ -101,8 +136,10 @@ export default function OrganizationDetailsScreen() {
   }
 
   const Icon = LOGO_ICONS[organization.logoIcon] ?? Building2;
-  const categoryLabel = getOrganizationCategoryLabel(organization.category);
-  const statusLabel = organization.isActive ? 'Open for queues' : 'Temporarily inactive';
+  const categoryLabel = t(organizationCategoryLabelKey(organization.category));
+  const statusLabel = organization.isActive
+    ? t('orgDetail.statusOpen')
+    : t('orgDetail.statusInactive');
 
   const startJoin = () => {
     selectOrganization(organization.id);
@@ -115,6 +152,21 @@ export default function OrganizationDetailsScreen() {
     pushServices(organization.id);
   };
 
+  const onToggleFavorite = () => {
+    if (favoriteBusy || toggleFavorite.isPending) return;
+    setFavoriteBusy(true);
+    toggleFavorite.mutate(
+      {
+        organizationId: organization.id,
+        currentlyFavorited: isFavorite,
+        organization,
+      },
+      {
+        onSettled: () => setFavoriteBusy(false),
+      },
+    );
+  };
+
   return (
     <Screen padded={false} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -124,16 +176,24 @@ export default function OrganizationDetailsScreen() {
 
         <Animated.View entering={FadeInDown.duration(400)} style={styles.banner}>
           <View style={styles.bannerGlow} />
-          <View style={styles.logoLarge}>
-            {organization.logoUrl ? (
-              <Image
-                source={{ uri: organization.logoUrl }}
-                style={styles.logoImage}
-                accessibilityIgnoresInvertColors
-              />
-            ) : (
-              <Icon size={40} color={Colors.primary} strokeWidth={1.75} />
-            )}
+          <View style={styles.bannerTop}>
+            <View style={styles.logoLarge}>
+              {organization.logoUrl ? (
+                <Image
+                  source={{ uri: organization.logoUrl }}
+                  style={styles.logoImage}
+                  accessibilityIgnoresInvertColors
+                />
+              ) : (
+                <Icon size={40} color={Colors.primary} strokeWidth={1.75} />
+              )}
+            </View>
+            <FavoriteToggleButton
+              isFavorite={isFavorite}
+              loading={favoriteBusy && toggleFavorite.isPending}
+              onPress={onToggleFavorite}
+              style={styles.favoriteBtn}
+            />
           </View>
           <Text style={styles.bannerName}>{organization.name}</Text>
           <Text style={styles.bannerCategory}>
@@ -144,14 +204,31 @@ export default function OrganizationDetailsScreen() {
 
         <Animated.View entering={FadeInDown.delay(80).duration(400)} style={styles.padded}>
           <Card style={styles.infoCard}>
-            <InfoRow
-              icon={<MapPin size={16} color={Colors.primary} />}
-              label="Address"
-              value={
-                [organization.address, organization.city].filter(Boolean).join(', ') ||
-                'Address not listed'
-              }
-            />
+            {hasValidCoords(organization.latitude, organization.longitude) ? (
+              <LocationMapPreview
+                latitude={organization.latitude}
+                longitude={organization.longitude}
+                label={organization.name}
+                address={organization.address}
+                city={organization.city}
+              />
+            ) : (
+              <InfoRow
+                icon={<MapPin size={16} color={Colors.primary} />}
+                label="Address"
+                value={
+                  [organization.address, organization.city].filter(Boolean).join(', ') ||
+                  'Address not listed'
+                }
+              />
+            )}
+            {distanceKm != null ? (
+              <InfoRow
+                icon={<MapPin size={16} color={Colors.accent} />}
+                label="Distance"
+                value={`${formatDistanceKm(distanceKm)} away`}
+              />
+            ) : null}
             {organization.phone ? (
               <InfoRow
                 icon={<Phone size={16} color={Colors.primary} />}
@@ -259,6 +336,19 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     gap: Spacing.sm,
   },
+  bannerTop: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  favoriteBtn: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderColor: 'rgba(255,255,255,0.5)',
+  },
   bannerGlow: {
     position: 'absolute',
     width: 180,
@@ -293,7 +383,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   infoCard: {
-    gap: 0,
+    gap: Spacing.sm,
   },
   description: {
     ...Typography.body,

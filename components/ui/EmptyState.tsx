@@ -10,10 +10,10 @@ import {
 } from 'lucide-react-native';
 
 import { Button } from '@/components/ui/Button';
-import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/use-translation';
 
 export type EmptyStatePreset =
   | 'default'
@@ -35,36 +35,36 @@ interface EmptyStateProps {
 
 const PRESETS: Record<
   EmptyStatePreset,
-  { title: string; description: string; Icon: typeof Inbox }
+  { titleKey: string; descriptionKey: string; Icon: typeof Inbox }
 > = {
   default: {
-    title: 'Nothing here yet',
-    description: 'Content will appear once it’s available.',
+    titleKey: 'empty.defaultTitle',
+    descriptionKey: 'empty.defaultDescription',
     Icon: Inbox,
   },
   notifications: {
-    title: 'No notifications yet',
-    description: "You'll see queue updates and important alerts here.",
+    titleKey: 'empty.notificationsTitle',
+    descriptionKey: 'empty.notificationsDescription',
     Icon: BellOff,
   },
   tickets: {
-    title: 'No tickets',
-    description: 'Join a queue to get your first MeriBaari ticket.',
+    titleKey: 'empty.ticketsTitle',
+    descriptionKey: 'empty.ticketsDescription',
     Icon: Ticket,
   },
   search: {
-    title: 'No search results',
-    description: 'Try a different name, service, or neighborhood.',
+    titleKey: 'empty.searchTitle',
+    descriptionKey: 'empty.searchDescription',
     Icon: SearchX,
   },
   history: {
-    title: 'No history yet',
-    description: 'Completed and cancelled tickets will appear here.',
+    titleKey: 'empty.historyTitle',
+    descriptionKey: 'empty.historyDescription',
     Icon: History,
   },
   favorites: {
-    title: 'No favorites',
-    description: 'Save places you visit often for quicker access.',
+    titleKey: 'empty.favoritesTitle',
+    descriptionKey: 'empty.favoritesDescription',
     Icon: HeartOff,
   },
 };
@@ -79,6 +79,7 @@ export function EmptyState({
   style,
 }: EmptyStateProps) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const config = PRESETS[preset];
   const Icon = config.Icon;
 
@@ -89,14 +90,16 @@ export function EmptyState({
       accessibilityRole="summary"
     >
       <View
-        style={[styles.iconWrap, { backgroundColor: Colors.primary50 }]}
+        style={[styles.iconWrap, { backgroundColor: theme.tints.primary.bg }]}
         accessibilityElementsHidden
       >
-        {icon ?? <Icon size={28} color={Colors.primary} strokeWidth={1.75} />}
+        {icon ?? <Icon size={28} color={theme.tints.primary.fg} strokeWidth={1.75} />}
       </View>
-      <Text style={[styles.title, { color: theme.text }]}>{title ?? config.title}</Text>
+      <Text style={[styles.title, { color: theme.text }]}>
+        {title ?? t(config.titleKey)}
+      </Text>
       <Text style={[styles.description, { color: theme.textSecondary }]}>
-        {description ?? config.description}
+        {description ?? t(config.descriptionKey)}
       </Text>
       {actionLabel ? (
         <Button

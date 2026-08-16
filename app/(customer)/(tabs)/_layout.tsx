@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 
 import { Colors } from '@/constants/colors';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/use-translation';
 import {
   useNotificationsRealtime,
   useUnreadNotificationCount,
@@ -11,6 +12,7 @@ import {
 
 export default function TabsLayout() {
   const theme = useTheme();
+  const { t } = useTranslation();
   useNotificationsRealtime();
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
 
@@ -36,8 +38,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarAccessibilityLabel: 'Home tab',
+          title: t('tabs.customer.home'),
+          tabBarAccessibilityLabel: t('tabs.customer.homeA11y'),
           tabBarIcon: ({ color, size }) => (
             <Home color={color} size={size} strokeWidth={2} />
           ),
@@ -46,8 +48,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="tickets"
         options={{
-          title: 'My Tickets',
-          tabBarAccessibilityLabel: 'My Tickets tab',
+          title: t('tabs.customer.tickets'),
+          tabBarAccessibilityLabel: t('tabs.customer.ticketsA11y'),
           tabBarIcon: ({ color, size }) => (
             <Ticket color={color} size={size} strokeWidth={2} />
           ),
@@ -56,11 +58,11 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="notifications"
         options={{
-          title: 'Notifications',
+          title: t('tabs.customer.notifications'),
           tabBarAccessibilityLabel:
             unreadCount > 0
-              ? `Notifications tab, ${unreadCount} unread`
-              : 'Notifications tab',
+              ? t('tabs.customer.notificationsA11yUnread', { count: unreadCount })
+              : t('tabs.customer.notificationsA11y'),
           tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
           tabBarBadgeStyle: {
             backgroundColor: Colors.error,
@@ -75,8 +77,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
-          tabBarAccessibilityLabel: 'Profile tab',
+          title: t('tabs.customer.profile'),
+          tabBarAccessibilityLabel: t('tabs.customer.profileA11y'),
           tabBarIcon: ({ color, size }) => (
             <UserRound color={color} size={size} strokeWidth={2} />
           ),

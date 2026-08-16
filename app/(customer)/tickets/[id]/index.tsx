@@ -2,10 +2,9 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
 import { Alert, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Activity, Building2, Share2 } from 'lucide-react-native';
+import { Activity, Building2, Share2, Star } from 'lucide-react-native';
 
-import { PrimaryButton } from '@/components/buttons/PrimaryButton';
-import { SecondaryButton } from '@/components/buttons/PrimaryButton';
+import { PrimaryButton, SecondaryButton } from '@/components/buttons/PrimaryButton';
 import { Screen } from '@/components/layout/Screen';
 import { ActiveTicketCard } from '@/components/tickets/ActiveTicketCard';
 import { ProgressRing } from '@/components/tickets/ProgressRing';
@@ -32,14 +31,19 @@ import {
 } from '@/features/queue/hooks/use-queue-queries';
 import { useTicketRealtime } from '@/features/queue/hooks/use-queue-realtime';
 import { AuthHref } from '@/features/auth/navigation';
-import { pushTicketProgress } from '@/features/tickets/navigation';
+import { pushTicketProgress, pushRateTicket } from '@/features/tickets/navigation';
 import { getStatusMeta } from '@/features/tickets/status';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/use-translation';
+import {
+  useTicketReview,
+} from '@/features/reviews/hooks/use-reviews';
 import { useJoinQueueStore } from '@/store/join-queue-store';
 import { formatClockTime, formatWaitTime } from '@/utils/formatting';
 
 export default function ActiveTicketScreen() {
   const theme = useTheme();
+  const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const {
     data: ticket,
@@ -52,8 +56,11 @@ export default function ActiveTicketScreen() {
   useTicketRealtime(id, ticket?.queueId);
   const cancelQueue = useCancelQueue();
   const selectOrganization = useJoinQueueStore((s) => s.selectOrganization);
+  const isCompleted =
+    ticket?.status === 'completed' || ticket?.status === 'served';
+  const { data: existingReview } = useTicketReview(id, Boolean(id && isCompleted));
 
-  const statusMeta = ticket ? getStatusMeta(ticket.status) : null;
+  const statusMeta = ticket ? getStatusMeta(ticket.status, theme.tints) : null;
 
   const ringProgress = useMemo(() => {
     if (!ticket) return 0.15;
@@ -138,12 +145,9 @@ export default function ActiveTicketScreen() {
     ]);
   };
 
-  const queueStatusLabel =
-    ticket.queueStatus === 'paused'
-      ? 'Paused'
-      : ticket.queueStatus === 'closed'
-        ? 'Closed'
-        : 'Open';
+  const queueStatusLabel = t(
+    `tickets.queueStatus.${ticket.queueStatus ?? 'open'}`,
+  );
 
   return (
     <Screen padded={false} edges={['top', 'left', 'right']}>
@@ -223,7 +227,7 @@ export default function ActiveTicketScreen() {
                 {statusMeta ? (
                   <View style={[styles.liveStatus, { backgroundColor: statusMeta.background }]}>
                     <Text style={[styles.liveStatusText, { color: statusMeta.color }]}>
-                      {statusMeta.description}
+                      {t(`tickets.statusHint.${ticket.status}`)}
                     </Text>
                   </View>
                 ) : null}
@@ -283,6 +287,17 @@ export default function ActiveTicketScreen() {
             onPress={onViewOrganization}
             leftIcon={<Building2 size={18} color={Colors.primary} />}
           />
+          {isCompleted ? (
+            <SecondaryButton
+              title={
+                existingReview
+                  ? t('reviews.viewYourRating')
+                  : t('reviews.rateVisit')
+              }
+              onPress={() => pushRateTicket(ticket.id)}
+              leftIcon={<Star size={18} color={Colors.secondary} />}
+            />
+          ) : null}
           {dataAccess.isActiveStatus(ticket.status) ? (
             <Button
               title={cancelQueue.isPending ? 'Cancelling…' : 'Cancel Queue'}

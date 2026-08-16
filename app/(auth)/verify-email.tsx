@@ -63,7 +63,7 @@ export default function VerifyEmailScreen() {
         },
       ]}
     >
-      <View style={styles.iconWrap}>
+      <View style={[styles.iconWrap, { backgroundColor: theme.tints.primary.bg }]}>
         <Mail size={32} color={Colors.primary} strokeWidth={1.75} />
       </View>
 
@@ -79,8 +79,12 @@ export default function VerifyEmailScreen() {
         verify again on every app launch once your session is active.
       </Text>
 
-      {message ? <Text style={styles.success}>{message}</Text> : null}
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {message ? (
+        <Text style={[styles.success, { color: theme.tints.secondary.fg }]}>{message}</Text>
+      ) : null}
+      {error ? (
+        <Text style={[styles.error, { color: theme.tints.error.fg }]}>{error}</Text>
+      ) : null}
 
       <View style={styles.actions}>
         <Button title="Resend verification email" loading={isLoading} onPress={() => void onResend()} />
@@ -105,7 +109,6 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: Radius['2xl'],
-    backgroundColor: Colors.primary50,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
@@ -125,12 +128,10 @@ const styles = StyleSheet.create({
   },
   success: {
     ...Typography.caption,
-    color: Colors.secondary600,
     textAlign: 'center',
   },
   error: {
     ...Typography.caption,
-    color: Colors.error,
     textAlign: 'center',
   },
   actions: {

@@ -46,7 +46,21 @@ export type NotificationTypeDb =
   | 'QUEUE_CLOSED'
   | 'QUEUE_TURN_APPROACHING'
   | 'QUEUE_CANCELLED'
+  | 'CUSTOMER_JOINED'
+  | 'SUBSCRIPTION_PAYMENT_SUBMITTED'
+  | 'SUBSCRIPTION_APPROVED'
+  | 'SUBSCRIPTION_REJECTED'
   | 'SYSTEM';
+
+export type SubscriptionStatusDb =
+  | 'draft'
+  | 'pending_payment'
+  | 'pending_approval'
+  | 'active'
+  | 'rejected';
+
+export type SubscriptionPaymentStatusDb = 'pending' | 'approved' | 'rejected';
+export type SubscriptionPaymentMethodDb = 'bank_transfer' | 'easypaisa';
 
 export interface Database {
   public: {
@@ -110,6 +124,17 @@ export interface Database {
           average_wait_time: number;
           is_active: boolean;
           status: OrganizationStatus;
+          subscription_status: SubscriptionStatusDb;
+          approved_at: string | null;
+          approved_by: string | null;
+          subscription_submitted_at: string | null;
+          payment_rejection_reason: string | null;
+          admin_hidden: boolean;
+          admin_hidden_reason: string | null;
+          admin_hidden_at: string | null;
+          admin_hidden_by: string | null;
+          rating: number;
+          review_count: number;
           created_at: string;
           updated_at: string;
         };
@@ -130,6 +155,17 @@ export interface Database {
           average_wait_time?: number;
           is_active?: boolean;
           status?: OrganizationStatus;
+          subscription_status?: SubscriptionStatusDb;
+          approved_at?: string | null;
+          approved_by?: string | null;
+          subscription_submitted_at?: string | null;
+          payment_rejection_reason?: string | null;
+          admin_hidden?: boolean;
+          admin_hidden_reason?: string | null;
+          admin_hidden_at?: string | null;
+          admin_hidden_by?: string | null;
+          rating?: number;
+          review_count?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -139,6 +175,13 @@ export interface Database {
             foreignKeyName: 'organizations_owner_id_fkey';
             columns: ['owner_id'];
             isOneToOne: true;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'organizations_approved_by_fkey';
+            columns: ['approved_by'];
+            isOneToOne: false;
             referencedRelation: 'profiles';
             referencedColumns: ['id'];
           },
@@ -466,6 +509,97 @@ export interface Database {
           },
         ];
       };
+      favorites: {
+        Row: {
+          id: string;
+          user_id: string;
+          organization_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          organization_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          organization_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'favorites_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'favorites_organization_id_fkey';
+            columns: ['organization_id'];
+            isOneToOne: false;
+            referencedRelation: 'organizations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      reviews: {
+        Row: {
+          id: string;
+          ticket_id: string;
+          organization_id: string;
+          user_id: string;
+          rating: number;
+          comment: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          ticket_id: string;
+          organization_id: string;
+          user_id: string;
+          rating: number;
+          comment?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          ticket_id?: string;
+          organization_id?: string;
+          user_id?: string;
+          rating?: number;
+          comment?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'reviews_ticket_id_fkey';
+            columns: ['ticket_id'];
+            isOneToOne: true;
+            referencedRelation: 'tickets';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'reviews_organization_id_fkey';
+            columns: ['organization_id'];
+            isOneToOne: false;
+            referencedRelation: 'organizations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'reviews_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       notifications: {
         Row: {
           id: string;
@@ -617,6 +751,64 @@ export interface Database {
           },
         ];
       };
+      subscription_payments: {
+        Row: {
+          id: string;
+          organization_id: string;
+          user_id: string;
+          amount: number;
+          currency: string;
+          payment_method: SubscriptionPaymentMethodDb;
+          payment_proof_path: string;
+          status: SubscriptionPaymentStatusDb;
+          submitted_at: string;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          rejection_reason: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          user_id: string;
+          amount: number;
+          currency?: string;
+          payment_method: SubscriptionPaymentMethodDb;
+          payment_proof_path: string;
+          status?: SubscriptionPaymentStatusDb;
+          submitted_at?: string;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          rejection_reason?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['subscription_payments']['Insert']>;
+        Relationships: [
+          {
+            foreignKeyName: 'subscription_payments_organization_id_fkey';
+            columns: ['organization_id'];
+            isOneToOne: false;
+            referencedRelation: 'organizations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'subscription_payments_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'subscription_payments_reviewed_by_fkey';
+            columns: ['reviewed_by'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -633,6 +825,14 @@ export interface Database {
         Returns: boolean;
       };
       is_org_owner_or_manager: {
+        Args: { org_id: string };
+        Returns: boolean;
+      };
+      is_admin: {
+        Args: Record<PropertyKey, never>;
+        Returns: boolean;
+      };
+      is_organization_customer_visible: {
         Args: { org_id: string };
         Returns: boolean;
       };
@@ -696,6 +896,36 @@ export interface Database {
         Args: { p_enabled: boolean };
         Returns: Database['public']['Tables']['notification_preferences']['Row'];
       };
+      submit_subscription_payment: {
+        Args: {
+          p_organization_id: string;
+          p_payment_method: SubscriptionPaymentMethodDb;
+          p_payment_proof_path: string;
+          p_amount: number;
+          p_currency?: string;
+        };
+        Returns: string;
+      };
+      review_subscription_payment: {
+        Args: {
+          p_payment_id: string;
+          p_action: string;
+          p_rejection_reason?: string | null;
+        };
+        Returns: string;
+      };
+      get_admin_subscription_stats: {
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      };
+      set_organization_admin_visibility: {
+        Args: {
+          p_organization_id: string;
+          p_visible: boolean;
+          p_reason?: string | null;
+        };
+        Returns: string;
+      };
     };
     Enums: {
       user_role: UserRole;
@@ -707,6 +937,9 @@ export interface Database {
       queue_entry_status: QueueEntryStatus;
       ticket_status: TicketStatusDb;
       notification_type: NotificationTypeDb;
+      subscription_status: SubscriptionStatusDb;
+      subscription_payment_status: SubscriptionPaymentStatusDb;
+      subscription_payment_method: SubscriptionPaymentMethodDb;
     };
     CompositeTypes: Record<string, never>;
   };
@@ -722,9 +955,13 @@ export type ServiceRow = Database['public']['Tables']['services']['Row'];
 export type QueueRow = Database['public']['Tables']['queues']['Row'];
 export type QueueEntryRow = Database['public']['Tables']['queue_entries']['Row'];
 export type TicketRow = Database['public']['Tables']['tickets']['Row'];
+export type FavoriteRow = Database['public']['Tables']['favorites']['Row'];
+export type ReviewRow = Database['public']['Tables']['reviews']['Row'];
 export type NotificationRow = Database['public']['Tables']['notifications']['Row'];
 export type PushTokenRow = Database['public']['Tables']['push_tokens']['Row'];
 export type NotificationPreferencesRow =
   Database['public']['Tables']['notification_preferences']['Row'];
 export type BusinessSettingsRow =
   Database['public']['Tables']['business_settings']['Row'];
+export type SubscriptionPaymentRow =
+  Database['public']['Tables']['subscription_payments']['Row'];

@@ -1,6 +1,7 @@
 import type { QueueJoinPreview, QueueTicket, Ticket } from '@/domain/models';
 import type {
   JoinQueueInput,
+  TicketHistoryListParams,
   TicketRepository,
   TicketUpdateInput,
 } from '@/domain/repositories';
@@ -13,8 +14,8 @@ import {
   getPrimaryActiveTicket,
   MOCK_TICKETS,
 } from '@/mock/tickets';
-import { getHistoryTickets } from '@/mock/history';
-import { computeTicketStatistics } from '@/mock/statistics';
+import { applyHistoryPagination, getHistoryTickets } from '@/mock/history';
+import { computeTicketStatistics, countServedToday } from '@/mock/statistics';
 import { noopSubscribe } from './noop-subscribe';
 
 function nextTicketNumber(prefix: string, existing: QueueTicket[]): string {
@@ -78,6 +79,20 @@ export class MockTicketRepository implements TicketRepository {
 
   async listHistory(tickets?: QueueTicket[]): Promise<QueueTicket[]> {
     return getHistoryTickets(tickets ?? this.tickets);
+  }
+
+  async listMyHistory(params?: TicketHistoryListParams): Promise<QueueTicket[]> {
+    return applyHistoryPagination(getHistoryTickets(this.tickets), params);
+  }
+
+  async listOrganizationHistory(
+    organizationId: string,
+    params?: TicketHistoryListParams,
+  ): Promise<QueueTicket[]> {
+    const scoped = getHistoryTickets(
+      this.tickets.filter((t) => t.organizationId === organizationId),
+    );
+    return applyHistoryPagination(scoped, params);
   }
 
   async getPrimaryActive(tickets?: QueueTicket[]): Promise<QueueTicket | null> {
@@ -165,6 +180,12 @@ export class MockTicketRepository implements TicketRepository {
 
   async getStatistics(tickets?: QueueTicket[]): Promise<TicketStatistics> {
     return computeTicketStatistics(tickets ?? this.tickets);
+  }
+
+  async countOrganizationServedToday(organizationId: string): Promise<number> {
+    return countServedToday(
+      this.tickets.filter((ticket) => ticket.organizationId === organizationId),
+    );
   }
 
   async getQrTicket(ticketId: string): Promise<Ticket | null> {

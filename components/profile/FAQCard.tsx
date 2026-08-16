@@ -8,7 +8,6 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
@@ -50,7 +49,7 @@ export function FAQCard({ item, index = 0 }: FAQCardProps) {
           styles.card,
           {
             backgroundColor: theme.card,
-            borderColor: open ? Colors.primary100 : theme.border,
+            borderColor: open ? theme.tints.primary.border : theme.border,
           },
         ]}
       >

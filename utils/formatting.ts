@@ -1,8 +1,10 @@
+import { t } from '@/lib/i18n';
+
 export function getGreeting(date = new Date()): string {
   const hour = date.getHours();
-  if (hour < 12) return 'Good Morning';
-  if (hour < 17) return 'Good Afternoon';
-  return 'Good Evening';
+  if (hour < 12) return t('greeting.morning');
+  if (hour < 17) return t('greeting.afternoon');
+  return t('greeting.evening');
 }
 
 export function formatWaitTime(minutes: number): string {

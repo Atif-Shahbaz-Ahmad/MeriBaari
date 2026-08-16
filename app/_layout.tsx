@@ -1,3 +1,5 @@
+import 'react-native-worklets';
+import 'react-native-reanimated';
 import {
   PlusJakartaSans_400Regular,
   PlusJakartaSans_500Medium,
@@ -9,9 +11,9 @@ import { ThemeProvider, DarkTheme as NavDark, DefaultTheme as NavLight } from '@
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { Component, useEffect, type ErrorInfo, type ReactNode } from 'react';
+import { StyleSheet as RNStyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import 'react-native-reanimated';
 
 import '@/global.css';
 
@@ -51,9 +53,58 @@ export const unstable_settings = {
   initialRouteName: 'index',
 };
 
+class RootErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: Error | null }
+> {
+  state = { error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('MeriBaari root error', error, info.componentStack);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <View style={errorStyles.wrap}>
+          <Text style={errorStyles.title}>MeriBaari failed to start</Text>
+          <Text style={errorStyles.body}>{this.state.error.message}</Text>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+const errorStyles = RNStyleSheet.create({
+  wrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    backgroundColor: '#F8FAFC',
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  body: {
+    fontSize: 14,
+    color: '#475569',
+    textAlign: 'center',
+  },
+});
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     PlusJakartaSans_400Regular,
     PlusJakartaSans_500Medium,
     PlusJakartaSans_600SemiBold,
@@ -61,30 +112,33 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (fontsLoaded) {
+    if (fontsLoaded || fontError) {
       SplashScreen.hideAsync().catch(() => undefined);
     }
-  }, [fontsLoaded]);
+  }, [fontsLoaded, fontError]);
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded && !fontError) {
     return null;
   }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AppProviders>
-        <ThemeProvider value={colorScheme === 'dark' ? MeriBaariDark : MeriBaariLight}>
-          <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="auth" options={{ animation: 'none' }} />
-            <Stack.Screen name="(customer)" />
-            <Stack.Screen name="(business)" />
-            <Stack.Screen name="profile" options={{ animation: 'slide_from_right' }} />
-          </Stack>
-          <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-        </ThemeProvider>
-      </AppProviders>
+      <RootErrorBoundary>
+        <AppProviders>
+          <ThemeProvider value={colorScheme === 'dark' ? MeriBaariDark : MeriBaariLight}>
+            <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="(auth)" />
+              <Stack.Screen name="auth" options={{ animation: 'none' }} />
+              <Stack.Screen name="(customer)" />
+              <Stack.Screen name="(business)" />
+              <Stack.Screen name="(admin)" />
+              <Stack.Screen name="profile" options={{ animation: 'slide_from_right' }} />
+            </Stack>
+            <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+          </ThemeProvider>
+        </AppProviders>
+      </RootErrorBoundary>
     </GestureHandlerRootView>
   );
 }

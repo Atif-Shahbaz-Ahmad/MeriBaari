@@ -67,15 +67,15 @@ export function QueueOverviewCard({ queue, index = 0, onPress }: QueueOverviewCa
           </View>
 
           <View style={styles.metaRow}>
-            <View style={[styles.metaChip, { backgroundColor: Colors.primary50 }]}>
-              <Users size={14} color={Colors.primary} />
-              <Text style={[styles.metaText, { color: Colors.primary700 }]}>
+          <View style={[styles.metaChip, { backgroundColor: theme.tints.primary.bg }]}>
+              <Users size={14} color={theme.tints.primary.fg} />
+              <Text style={[styles.metaText, { color: theme.tints.primary.fg }]}>
                 {queue.waitingCount} waiting
               </Text>
             </View>
-            <View style={[styles.metaChip, { backgroundColor: Colors.accent50 }]}>
-              <Clock3 size={14} color={Colors.accent} />
-              <Text style={[styles.metaText, { color: '#B45309' }]}>
+            <View style={[styles.metaChip, { backgroundColor: theme.tints.accent.bg }]}>
+              <Clock3 size={14} color={theme.tints.accent.fg} />
+              <Text style={[styles.metaText, { color: theme.tints.accent.fg }]}>
                 ~{formatWaitTime(queue.estimatedWaitMinutes)}
               </Text>
             </View>

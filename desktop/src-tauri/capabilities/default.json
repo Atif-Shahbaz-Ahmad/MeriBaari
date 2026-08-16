@@ -1,0 +1,10 @@
+{
+  "identifier": "default",
+  "description": "MeriBaari desktop capabilities",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-set-title",
+    "notification:default"
+  ]
+}

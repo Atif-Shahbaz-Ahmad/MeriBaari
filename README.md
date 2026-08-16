@@ -12,18 +12,7 @@ Smart digital queue management — Day 1 foundation for Expo SDK 54 + Expo Go.
 
 ## Run
 
-```bash
-npm install
-npx expo start
-```
-
-Scan the QR code with **Expo Go** (SDK 54).
-
-### Demo auth (no Supabase yet)
-
-Leave `.env` empty and use **Continue as Guest (Demo)**, or enter any valid phone/email and any 6-digit OTP.
-
-### Real Supabase auth
+Content (queues, auth, chat, tickets) comes from the **hosted Supabase project** in `.env`. The mobile app does **not** call Next.js, Tauri, or a localhost API.
 
 Copy `.env.example` → `.env`:
 
@@ -33,6 +22,34 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=YOUR_ANON_KEY
 ```
 
 Enable Phone and/or Email OTP in the Supabase dashboard.
+
+### Develop (Expo Go)
+
+```bash
+npm install
+npx expo start
+```
+
+Scan the QR code with **Expo Go** (SDK 54). Metro must stay running so the phone can load JavaScript. That is development only — it is not the data backend.
+
+Leave the keys empty only if you want in-app **demo/mock** data.
+
+### Standalone install (no Metro, no localhost)
+
+Preview/production builds embed the JS bundle and talk only to hosted Supabase. After you install the app, close the terminal — it must work with no `npm start`, no Next.js, and no localhost backend.
+
+```bash
+npm run android:preview
+```
+
+Cloud builds need the same keys as EAS environment variables (`preview` and `production`):
+
+```bash
+npx eas-cli env:set --name EXPO_PUBLIC_SUPABASE_URL --value https://YOUR_PROJECT.supabase.co --environment preview --visibility plaintext
+npx eas-cli env:set --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value YOUR_ANON_KEY --environment preview --visibility sensitive
+```
+
+Preview/production builds fail if the URL is missing or points at localhost.
 
 ## Structure
 
@@ -60,9 +77,14 @@ In-app logos are SVG (`Logo` / `LogoMark`) matching primary `#2563EB` and second
 
 | Command | Purpose |
 |---------|---------|
-| `npm start` | Expo Go |
-| `npm run lint` | ESLint |
+| `npm start` | Expo Go (Metro; content still from Supabase) |
+| `npm run android:preview` | Standalone Android APK (no localhost) |
+| `npm run ios:preview` | Standalone iOS build (no localhost) |
+| `npm run lint` | ESLint (mobile) |
 | `npm run format` | Prettier |
+| `npm run web` | Next.js web app (dev) |
+| `npm run desktop` | Tauri desktop app (dev) |
+| `npm run desktop:build` | Windows installer (production) |
 
 ## Day 1 scope
 

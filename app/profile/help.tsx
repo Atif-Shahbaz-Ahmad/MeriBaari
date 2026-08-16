@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
+import { Bug, FileText, Mail, Phone, Shield } from 'lucide-react-native';
 import { Alert, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Bug, FileText, Mail, Phone, Shield } from 'lucide-react-native';
 
 import { Screen } from '@/components/layout/Screen';
 import { FAQCard } from '@/components/profile/FAQCard';
@@ -12,9 +12,9 @@ import { FlowHeader } from '@/components/ui/FlowHeader';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
-import { useTheme } from '@/hooks/use-theme';
 import { dataAccess } from '@/data';
 import { pushPrivacy } from '@/features/profile/navigation';
+import { useTheme } from '@/hooks/use-theme';
 
 const MOCK_ABOUT = dataAccess.MOCK_ABOUT;
 const MOCK_FAQ = dataAccess.MOCK_FAQ;
@@ -81,7 +81,7 @@ export default function HelpSupportScreen() {
             <SettingsItem
               icon={<Bug size={18} color={Colors.primary} />}
               label="Report a Problem"
-              description="Placeholder feedback flow"
+              description="Send your report to the support team at atif.s.ahmad2@gmail.com"
               onPress={reportProblem}
               showDivider={false}
             />

@@ -84,7 +84,7 @@ export function QueueTimeline({
 
                         : entry.isPast
 
-                          ? Colors.secondary100
+                          ? theme.tints.secondary.bgStrong
 
                           : theme.border,
 
@@ -222,7 +222,7 @@ export function QueueTimeline({
 
                         : entry.isPast
 
-                          ? Colors.secondary100
+                          ? theme.tints.secondary.bgStrong
 
                           : theme.border,
 
@@ -266,9 +266,9 @@ export function QueueTimeline({
 
                 styles.vContent,
 
-                entry.isYou && { backgroundColor: Colors.primary50, borderColor: Colors.primary100 },
+                entry.isYou && { backgroundColor: theme.tints.primary.bg, borderColor: theme.tints.primary.border },
 
-                entry.isServing && !entry.isYou && { backgroundColor: Colors.secondary50 },
+                entry.isServing && !entry.isYou && { backgroundColor: theme.tints.secondary.bg },
 
               ]}
 
@@ -284,11 +284,11 @@ export function QueueTimeline({
 
                     color: entry.isYou
 
-                      ? Colors.primary700
+                      ? theme.tints.primary.fg
 
                       : entry.isServing
 
-                        ? Colors.secondary600
+                        ? theme.tints.secondary.fg
 
                         : theme.text,
 
@@ -304,7 +304,7 @@ export function QueueTimeline({
 
               {entry.isServing ? (
 
-                <Text style={[styles.vMeta, { color: Colors.secondary600 }]}>Now serving</Text>
+                <Text style={[styles.vMeta, { color: theme.tints.secondary.fg }]}>Now serving</Text>
 
               ) : entry.isYou ? (
 

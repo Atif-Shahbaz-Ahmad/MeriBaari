@@ -83,6 +83,9 @@ export interface WalkInDraft {
   phone: string;
   serviceId: string;
   departmentId: string;
+  /** Display names captured from live org catalog (avoids mock lookups). */
+  departmentName?: string;
+  serviceName?: string;
   priority: BusinessPriority;
 }
 

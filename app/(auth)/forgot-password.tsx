@@ -51,7 +51,7 @@ export default function ForgotPasswordScreen() {
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: theme.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
         contentContainerStyle={[
@@ -62,6 +62,7 @@ export default function ForgotPasswordScreen() {
           },
         ]}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
         <Logo variant={scheme === 'dark' ? 'dark' : 'light'} size="md" />
 
@@ -74,7 +75,7 @@ export default function ForgotPasswordScreen() {
 
         {sent ? (
           <View style={styles.form}>
-            <Text style={[styles.success, { color: Colors.secondary600 }]}>
+            <Text style={[styles.success, { color: theme.tints.secondary.fg }]}>
               If an account exists for that email, a reset link is on the way. Check your inbox and
               spam folder.
             </Text>

@@ -4,8 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { CheckCircle2, Clock3, Ticket } from 'lucide-react-native';
 
-import { PrimaryButton } from '@/components/buttons/PrimaryButton';
-import { SecondaryButton } from '@/components/buttons/PrimaryButton';
+import { PrimaryButton, SecondaryButton } from '@/components/buttons/PrimaryButton';
 import { Screen } from '@/components/layout/Screen';
 import { Card } from '@/components/ui/Card';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
@@ -54,7 +53,7 @@ export default function JoinQueueSuccessScreen() {
   return (
     <Screen>
       <View style={styles.container}>
-        <Animated.View entering={ZoomIn.duration(450)} style={styles.iconWrap}>
+        <Animated.View entering={ZoomIn.duration(450)} style={[styles.iconWrap, { backgroundColor: theme.tints.secondary.bg }]}>
           <CheckCircle2 size={56} color={Colors.secondary} strokeWidth={1.75} />
         </Animated.View>
 
@@ -70,9 +69,9 @@ export default function JoinQueueSuccessScreen() {
         ) : ticket ? (
           <Animated.View entering={FadeInDown.delay(160).duration(400)} style={styles.cardWrap}>
             <Card style={styles.ticketCard}>
-              <View style={[styles.ticketBadge, { backgroundColor: Colors.secondary50 }]}>
-                <Ticket size={18} color={Colors.secondary600} />
-                <Text style={[styles.badgeLabel, { color: Colors.secondary600 }]}>Queue number</Text>
+              <View style={[styles.ticketBadge, { backgroundColor: theme.tints.secondary.bg }]}>
+                <Ticket size={18} color={theme.tints.secondary.fg} />
+                <Text style={[styles.badgeLabel, { color: theme.tints.secondary.fg }]}>Queue number</Text>
               </View>
               <Text style={[styles.ticketNumber, { color: Colors.primary }]}>
                 {ticket.ticketNumber}
@@ -83,9 +82,9 @@ export default function JoinQueueSuccessScreen() {
               <Text style={[styles.service, { color: theme.textSecondary }]} numberOfLines={1}>
                 {ticket.departmentName} · {ticket.serviceName}
               </Text>
-              <View style={[styles.waitRow, { backgroundColor: Colors.accent50 }]}>
-                <Clock3 size={16} color={Colors.accent} />
-                <Text style={[styles.waitText, { color: '#B45309' }]}>
+              <View style={[styles.waitRow, { backgroundColor: theme.tints.accent.bg }]}>
+                <Clock3 size={16} color={theme.tints.accent.fg} />
+                <Text style={[styles.waitText, { color: theme.tints.accent.fg }]}>
                   Est. wait ~{formatWaitTime(ticket.estimatedWaitMinutes)}
                 </Text>
               </View>
@@ -114,7 +113,6 @@ const styles = StyleSheet.create({
     width: 112,
     height: 112,
     borderRadius: Radius['2xl'],
-    backgroundColor: Colors.secondary50,
     alignItems: 'center',
     justifyContent: 'center',
   },

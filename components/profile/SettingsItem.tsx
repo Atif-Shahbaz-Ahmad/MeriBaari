@@ -50,7 +50,7 @@ export function SettingsItem({
   const content = (
     <>
       <View style={styles.left}>
-        {icon ? <View style={styles.icon}>{icon}</View> : null}
+        {icon ? <View style={[styles.icon, { backgroundColor: theme.tints.primary.bg }]}>{icon}</View> : null}
         <View style={styles.copy}>
           <Text style={[styles.label, { color: danger ? Colors.error : theme.text }]}>{label}</Text>
           {description ? (
@@ -139,7 +139,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: Radius.md,
-    backgroundColor: Colors.primary50,
     alignItems: 'center',
     justifyContent: 'center',
   },

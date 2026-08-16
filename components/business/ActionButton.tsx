@@ -1,4 +1,11 @@
-import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type ViewStyle,
+} from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -18,16 +25,15 @@ interface ActionButtonProps {
   icon?: React.ReactNode;
   variant?: ActionButtonVariant;
   disabled?: boolean;
+  loading?: boolean;
   compact?: boolean;
   style?: ViewStyle;
 }
 
-const VARIANT = {
+const SOLID = {
   primary: { bg: Colors.primary, text: Colors.textInverse, border: Colors.primary },
   success: { bg: Colors.secondary, text: Colors.textInverse, border: Colors.secondary },
   warning: { bg: Colors.accent, text: Colors.text, border: Colors.accent },
-  danger: { bg: Colors.error50, text: Colors.error, border: Colors.error100 },
-  neutral: { bg: Colors.primary50, text: Colors.primary700, border: Colors.primary100 },
 } as const;
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -38,12 +44,27 @@ export function ActionButton({
   icon,
   variant = 'primary',
   disabled = false,
+  loading = false,
   compact = false,
   style,
 }: ActionButtonProps) {
   const theme = useTheme();
   const scale = useSharedValue(1);
-  const palette = VARIANT[variant];
+  const palette =
+    variant === 'danger'
+      ? {
+          bg: theme.tints.error.bg,
+          text: theme.tints.error.fg,
+          border: theme.tints.error.border,
+        }
+      : variant === 'neutral'
+        ? {
+            bg: theme.tints.primary.bg,
+            text: theme.tints.primary.fg,
+            border: theme.tints.primary.border,
+          }
+        : SOLID[variant];
+  const isDisabled = disabled || loading;
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -52,8 +73,9 @@ export function ActionButton({
   return (
     <AnimatedPressable
       onPress={onPress}
-      disabled={disabled}
+      disabled={isDisabled}
       onPressIn={() => {
+        if (isDisabled) return;
         scale.value = withSpring(0.96);
       }}
       onPressOut={() => {
@@ -61,20 +83,24 @@ export function ActionButton({
       }}
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ disabled }}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
       style={[
         styles.base,
         compact ? styles.compact : styles.regular,
         {
-          backgroundColor: variant === 'neutral' ? (theme.card === Colors.card ? palette.bg : Colors.darkBorder) : palette.bg,
+          backgroundColor: palette.bg,
           borderColor: palette.border,
-          opacity: disabled ? 0.5 : 1,
+          opacity: isDisabled ? 0.5 : 1,
         },
         animatedStyle,
         style,
       ]}
     >
-      {icon}
+      {loading ? (
+        <ActivityIndicator size="small" color={palette.text} />
+      ) : (
+        icon
+      )}
       <Text style={[styles.label, compact && styles.labelCompact, { color: palette.text }]}>
         {label}
       </Text>
@@ -89,22 +115,25 @@ export function QuickActionTile({
   icon,
   tint = 'blue',
   disabled,
+  loading = false,
 }: {
   label: string;
   onPress?: () => void;
   icon: React.ReactNode;
   tint?: 'blue' | 'green' | 'orange' | 'red';
   disabled?: boolean;
+  loading?: boolean;
 }) {
   const theme = useTheme();
   const scale = useSharedValue(1);
   const tintMap = {
-    blue: { bg: Colors.primary50, iconBg: Colors.primary100, color: Colors.primary },
-    green: { bg: Colors.secondary50, iconBg: Colors.secondary100, color: Colors.secondary600 },
-    orange: { bg: Colors.accent50, iconBg: Colors.accent100, color: '#B45309' },
-    red: { bg: Colors.error50, iconBg: Colors.error100, color: Colors.error },
+    blue: theme.tints.primary,
+    green: theme.tints.secondary,
+    orange: theme.tints.accent,
+    red: theme.tints.error,
   } as const;
   const palette = tintMap[tint];
+  const isDisabled = Boolean(disabled || loading);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -113,8 +142,9 @@ export function QuickActionTile({
   return (
     <AnimatedPressable
       onPress={onPress}
-      disabled={disabled}
+      disabled={isDisabled}
       onPressIn={() => {
+        if (isDisabled) return;
         scale.value = withSpring(0.97);
       }}
       onPressOut={() => {
@@ -122,17 +152,20 @@ export function QuickActionTile({
       }}
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
       style={[
         styles.tile,
         {
-          backgroundColor: theme.card === Colors.card ? palette.bg : theme.card,
+          backgroundColor: theme.isDark ? theme.card : palette.bg,
           borderColor: theme.border,
-          opacity: disabled ? 0.5 : 1,
+          opacity: isDisabled ? 0.5 : 1,
         },
         animatedStyle,
       ]}
     >
-      <View style={[styles.tileIcon, { backgroundColor: palette.iconBg }]}>{icon}</View>
+      <View style={[styles.tileIcon, { backgroundColor: palette.bgStrong }]}>
+        {loading ? <ActivityIndicator size="small" color={palette.fg} /> : icon}
+      </View>
       <Text style={[styles.tileLabel, { color: theme.text }]} numberOfLines={2}>
         {label}
       </Text>

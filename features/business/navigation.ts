@@ -11,6 +11,8 @@ export const BusinessHref = {
     (queueId
       ? `/(business)/activity?queueId=${queueId}`
       : '/(business)/activity') as Href,
+  history: '/(business)/history' as Href,
+  reviews: '/(business)/reviews' as Href,
   walkIn: '/(business)/walk-in' as Href,
   walkInSuccess: '/(business)/walk-in/success' as Href,
   createOrganization: '/(business)/organization/create' as Href,
@@ -32,6 +34,14 @@ export function pushQueueDetails(queueId: string) {
 
 export function pushQueueActivity(queueId?: string) {
   router.push(BusinessHref.queueActivity(queueId));
+}
+
+export function pushOwnerHistory() {
+  router.push(BusinessHref.history);
+}
+
+export function pushOwnerReviews() {
+  router.push(BusinessHref.reviews);
 }
 
 export function pushWalkIn() {

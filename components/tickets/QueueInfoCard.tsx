@@ -6,8 +6,6 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { Card } from '@/components/ui/Card';
 
-import { Colors } from '@/constants/colors';
-
 import { Radius, Spacing } from '@/constants/spacing';
 
 import { Typography } from '@/constants/typography';
@@ -66,15 +64,15 @@ export function QueueInfoCard({ title = 'Queue details', items }: QueueInfoCardP
 
                       item.accent === 'primary'
 
-                        ? Colors.primary
+                        ? theme.primary
 
                         : item.accent === 'secondary'
 
-                          ? Colors.secondary600
+                          ? theme.tints.secondary.fg
 
                           : item.accent === 'accent'
 
-                            ? Colors.accent
+                            ? theme.tints.accent.fg
 
                             : theme.text,
 

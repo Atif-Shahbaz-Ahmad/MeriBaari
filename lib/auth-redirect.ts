@@ -25,6 +25,13 @@ export function getNativeAuthRedirectUrl(): string {
   });
 }
 
+/** True when a deep link is a Supabase password-recovery / reset link. */
+export function isPasswordRecoveryUrl(url: string): boolean {
+  const params = parseAuthUrlParams(url);
+  const type = (params.type ?? params['type'] ?? '').toLowerCase();
+  return type === 'recovery';
+}
+
 /** Parse query + hash params from a deep link / redirect URL. */
 export function parseAuthUrlParams(url: string): Record<string, string> {
   const params: Record<string, string> = {};

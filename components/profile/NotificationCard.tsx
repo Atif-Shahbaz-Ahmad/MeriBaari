@@ -1,13 +1,13 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import {
-  BellRing,
-  CheckCircle2,
-  Clock3,
   PauseCircle,
   PlayCircle,
   Ticket,
   Timer,
   XCircle,
+  BellRing,
+  CheckCircle2,
+  CreditCard,
 } from 'lucide-react-native';
 import Animated, {
   FadeInDown,
@@ -17,82 +17,41 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { Colors } from '@/constants/colors';
+import type { SemanticTints } from '@/constants/colors';
 import { Radius, Shadows, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/use-translation';
 import { formatRelativeTime } from '@/utils/formatting';
 import type { AppNotification, NotificationType } from '@/types';
 
 const TYPE_META: Record<
   NotificationType,
-  { Icon: typeof BellRing; color: string; bg: string; categoryLabel: string }
+  { Icon: typeof BellRing; tint: keyof SemanticTints; categoryKey: string }
 > = {
-  QUEUE_JOINED: {
-    Icon: Ticket,
-    color: Colors.primary,
-    bg: Colors.primary50,
-    categoryLabel: 'Queue',
+  QUEUE_JOINED: { Icon: Ticket, tint: 'primary', categoryKey: 'notifications.tabQueue' },
+  TICKET_CALLED: { Icon: BellRing, tint: 'primary', categoryKey: 'notifications.tabQueue' },
+  TICKET_SERVING: { Icon: Timer, tint: 'accent', categoryKey: 'notifications.tabQueue' },
+  TICKET_SERVED: { Icon: CheckCircle2, tint: 'secondary', categoryKey: 'notifications.tabQueue' },
+  TICKET_SKIPPED: { Icon: XCircle, tint: 'error', categoryKey: 'notifications.tabQueue' },
+  QUEUE_PAUSED: { Icon: PauseCircle, tint: 'accent', categoryKey: 'notifications.tabQueue' },
+  QUEUE_RESUMED: { Icon: PlayCircle, tint: 'secondary', categoryKey: 'notifications.tabQueue' },
+  QUEUE_CLOSED: { Icon: XCircle, tint: 'error', categoryKey: 'notifications.tabQueue' },
+  QUEUE_TURN_APPROACHING: { Icon: Timer, tint: 'accent', categoryKey: 'notifications.tabReminders' },
+  QUEUE_CANCELLED: { Icon: XCircle, tint: 'error', categoryKey: 'notifications.tabSystem' },
+  CUSTOMER_JOINED: { Icon: Ticket, tint: 'secondary', categoryKey: 'notifications.tabQueue' },
+  SUBSCRIPTION_PAYMENT_SUBMITTED: {
+    Icon: CreditCard,
+    tint: 'accent',
+    categoryKey: 'notifications.tabSystem',
   },
-  TICKET_CALLED: {
-    Icon: BellRing,
-    color: Colors.primary,
-    bg: Colors.primary50,
-    categoryLabel: 'Queue',
-  },
-  TICKET_SERVING: {
-    Icon: Timer,
-    color: Colors.accent,
-    bg: Colors.accent50,
-    categoryLabel: 'Queue',
-  },
-  TICKET_SERVED: {
+  SUBSCRIPTION_APPROVED: {
     Icon: CheckCircle2,
-    color: Colors.secondary,
-    bg: Colors.secondary50,
-    categoryLabel: 'Queue',
+    tint: 'secondary',
+    categoryKey: 'notifications.tabSystem',
   },
-  TICKET_SKIPPED: {
-    Icon: XCircle,
-    color: Colors.error,
-    bg: Colors.error50,
-    categoryLabel: 'Queue',
-  },
-  QUEUE_PAUSED: {
-    Icon: PauseCircle,
-    color: Colors.accent,
-    bg: Colors.accent50,
-    categoryLabel: 'Queue',
-  },
-  QUEUE_RESUMED: {
-    Icon: PlayCircle,
-    color: Colors.secondary,
-    bg: Colors.secondary50,
-    categoryLabel: 'Queue',
-  },
-  QUEUE_CLOSED: {
-    Icon: XCircle,
-    color: Colors.error,
-    bg: Colors.error50,
-    categoryLabel: 'Queue',
-  },
-  QUEUE_TURN_APPROACHING: {
-    Icon: Timer,
-    color: Colors.accent,
-    bg: Colors.accent50,
-    categoryLabel: 'Reminder',
-  },
-  QUEUE_CANCELLED: {
-    Icon: XCircle,
-    color: Colors.error,
-    bg: Colors.error50,
-    categoryLabel: 'System',
-  },
-  SYSTEM: {
-    Icon: BellRing,
-    color: Colors.primary,
-    bg: Colors.primary50,
-    categoryLabel: 'System',
-  },
+  SUBSCRIPTION_REJECTED: { Icon: XCircle, tint: 'error', categoryKey: 'notifications.tabSystem' },
+  SYSTEM: { Icon: BellRing, tint: 'primary', categoryKey: 'notifications.tabSystem' },
 };
 
 interface NotificationCardProps {
@@ -100,6 +59,8 @@ interface NotificationCardProps {
   index?: number;
   onPress?: () => void;
   onLongPress?: () => void;
+  disabled?: boolean;
+  loading?: boolean;
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -109,13 +70,18 @@ export function NotificationCard({
   index = 0,
   onPress,
   onLongPress,
+  disabled = false,
+  loading = false,
 }: NotificationCardProps) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const scale = useSharedValue(1);
   const meta = TYPE_META[notification.type] ?? TYPE_META.SYSTEM;
   const Icon = meta.Icon;
+  const tint = theme.tints[meta.tint];
   const isRead = notification.isRead ?? notification.read;
   const body = notification.message ?? notification.description;
+  const isDisabled = disabled || loading;
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -126,10 +92,13 @@ export function NotificationCard({
       <AnimatedPressable
         onPress={onPress}
         onLongPress={onLongPress}
+        disabled={isDisabled}
         accessibilityRole="button"
         accessibilityLabel={`${isRead ? '' : 'Unread. '}${notification.title}. ${body}`}
         accessibilityHint="Double tap to open. Long press for more options."
+        accessibilityState={{ disabled: isDisabled, busy: loading }}
         onPressIn={() => {
+          if (isDisabled) return;
           scale.value = withSpring(0.98);
         }}
         onPressOut={() => {
@@ -141,13 +110,14 @@ export function NotificationCard({
           animatedStyle,
           {
             backgroundColor: theme.card,
-            borderColor: isRead ? theme.border : Colors.primary100,
+            borderColor: isRead ? theme.border : theme.tints.primary.border,
+            opacity: isDisabled ? 0.6 : 1,
           },
         ]}
       >
         {!isRead ? <View style={styles.unreadDot} accessibilityElementsHidden /> : null}
-        <View style={[styles.icon, { backgroundColor: meta.bg }]}>
-          <Icon size={18} color={meta.color} strokeWidth={2} />
+        <View style={[styles.icon, { backgroundColor: tint.bg }]}>
+          <Icon size={18} color={tint.fg} strokeWidth={2} />
         </View>
         <View style={styles.body}>
           <View style={styles.titleRow}>
@@ -172,7 +142,9 @@ export function NotificationCard({
           <Text style={[styles.description, { color: theme.textSecondary }]} numberOfLines={3}>
             {body}
           </Text>
-          <Text style={[styles.category, { color: meta.color }]}>{meta.categoryLabel}</Text>
+          <Text style={[styles.category, { color: tint.fg }]}>
+            {t(meta.categoryKey)}
+          </Text>
         </View>
       </AnimatedPressable>
     </Animated.View>

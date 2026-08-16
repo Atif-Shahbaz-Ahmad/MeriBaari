@@ -210,7 +210,7 @@ export const SETTINGS_GROUPS: SettingsGroupDefinition[] = [
 
         label: 'Quick-join favorites',
 
-        description: 'Placeholder for future favorites',
+        description: 'Jump into saved businesses faster',
 
         kind: 'toggle',
 

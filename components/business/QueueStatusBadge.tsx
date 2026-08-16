@@ -3,6 +3,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { getQueueStatusMeta } from '@/features/business/status';
+import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/use-translation';
 import type { BusinessQueueStatus } from '@/types';
 
 interface QueueStatusBadgeProps {
@@ -11,7 +13,10 @@ interface QueueStatusBadgeProps {
 }
 
 export function QueueStatusBadge({ status, size = 'sm' }: QueueStatusBadgeProps) {
-  const meta = getQueueStatusMeta(status);
+  const { t } = useTranslation();
+  const theme = useTheme();
+  const meta = getQueueStatusMeta(status, theme.tints);
+  const label = t(`tickets.queueStatus.${status}`);
 
   return (
     <View
@@ -21,11 +26,11 @@ export function QueueStatusBadge({ status, size = 'sm' }: QueueStatusBadgeProps)
         { backgroundColor: meta.background },
       ]}
       accessibilityRole="text"
-      accessibilityLabel={`Queue status ${meta.label}`}
+      accessibilityLabel={`${t('tabs.business.queue')} ${label}`}
     >
       <View style={[styles.dot, { backgroundColor: meta.color }]} />
       <Text style={[styles.label, size === 'md' && styles.labelMd, { color: meta.color }]}>
-        {meta.label}
+        {label}
       </Text>
     </View>
   );

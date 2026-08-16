@@ -12,6 +12,7 @@ export default function BusinessLayout() {
   const isRestoringSession = useAuthStore((s) => s.isRestoringSession);
   const isProfileLoading = useAuthStore((s) => s.isProfileLoading);
   const profileLoadFailed = useAuthStore((s) => s.profileLoadFailed);
+  const passwordRecoveryPending = useAuthStore((s) => s.passwordRecoveryPending);
   const session = useAuthStore((s) => s.session);
   const role = useAuthStore((s) => s.role);
 
@@ -23,12 +24,20 @@ export default function BusinessLayout() {
     return <Redirect href={getUnauthenticatedHref()} />;
   }
 
+  if (passwordRecoveryPending) {
+    return <Redirect href={AuthHref.resetPassword} />;
+  }
+
   if (profileLoadFailed) {
     return <Redirect href={AuthHref.profileRecovery} />;
   }
 
   if (!role) {
     return <Redirect href={AuthHref.roleSelect} />;
+  }
+
+  if (role === 'admin') {
+    return <Redirect href={AuthHref.adminHome} />;
   }
 
   if (role !== 'business') {
@@ -41,6 +50,10 @@ export default function BusinessLayout() {
       <Stack.Screen name="queue/[queueId]" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="walk-in" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="activity" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="history" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="assistant" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="reviews" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="subscription" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen
         name="organization/create"
         options={{ animation: 'slide_from_right' }}

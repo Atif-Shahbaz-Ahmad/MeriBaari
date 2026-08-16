@@ -19,6 +19,7 @@ import {
   pushThemeSettings,
 } from '@/features/profile/navigation';
 import { useAuth } from '@/hooks/use-auth';
+import { useTranslation } from '@/hooks/use-translation';
 import { dataAccess } from '@/data';
 import { usePreferencesStore } from '@/store/preferences-store';
 import { useThemeStore } from '@/store/theme-store';
@@ -28,6 +29,7 @@ const LANGUAGE_OPTIONS = dataAccess.LANGUAGE_OPTIONS;
 const SETTINGS_GROUPS = dataAccess.SETTINGS_GROUPS;
 
 export default function SettingsScreen() {
+  const { t } = useTranslation();
   const preference = useThemeStore((s) => s.preference);
   const language = usePreferencesStore((s) => s.language);
   const prefs = usePreferencesStore();
@@ -77,15 +79,15 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInDown.duration(400)} style={styles.padded}>
           <FlowHeader
-            title="Settings"
-            subtitle="Personalize your MeriBaari experience"
+            title={t('settings.title')}
+            subtitle={t('settings.subtitle')}
             onBack={() => router.back()}
           />
         </Animated.View>
 
         {SETTINGS_GROUPS.map((group, index) => (
           <View key={group.id} style={styles.padded}>
-            <SettingsGroup title={group.title} index={index}>
+            <SettingsGroup title={t(`settings.groups.${group.id}`)} index={index}>
               {group.items.map((item, itemIndex) => {
                 const isToggle = item.kind === 'toggle' && item.preferenceKey;
                 const prefKey = item.preferenceKey as keyof UserPreferences | undefined;
@@ -93,8 +95,12 @@ export default function SettingsScreen() {
                 return (
                   <SettingsItem
                     key={item.id}
-                    label={item.label}
-                    description={item.description}
+                    label={t(`settings.items.${item.id}`)}
+                    description={
+                      item.description
+                        ? t(`settings.items.${item.id}Hint`)
+                        : undefined
+                    }
                     value={resolveValue(item.id, item.preferenceKey)}
                     onPress={isToggle ? undefined : resolvePress(item.route)}
                     switchValue={

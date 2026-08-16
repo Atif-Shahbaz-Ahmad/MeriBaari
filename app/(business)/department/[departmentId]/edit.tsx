@@ -34,20 +34,8 @@ import {
   departmentFormSchema,
   type DepartmentFormValues,
 } from '@/features/structure/schemas';
+import { DEPARTMENT_ICON_LABELS } from '@/lib/department-icons';
 import { useTheme } from '@/hooks/use-theme';
-
-const ICON_LABELS: Record<(typeof DEPARTMENT_ICON_IDS)[number], string> = {
-  stethoscope: 'Clinic',
-  heart: 'Heart',
-  tooth: 'Dental',
-  eye: 'Eye',
-  siren: 'Emergency',
-  scan: 'Scan',
-  flask: 'Lab',
-  users: 'General',
-  file: 'Docs',
-  car: 'Transport',
-};
 
 export default function EditDepartmentScreen() {
   const theme = useTheme();
@@ -104,7 +92,10 @@ export default function EditDepartmentScreen() {
     return (
       <Screen>
         <FlowHeader title="Edit Department" onBack={() => router.back()} />
-        <EmptyState title="Department not found" />
+        <EmptyState
+          title="Department not found"
+          description="This department may have been removed or is no longer available."
+        />
       </Screen>
     );
   }
@@ -134,11 +125,12 @@ export default function EditDepartmentScreen() {
     <Screen padded={false} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
           <Animated.View entering={FadeInDown.duration(400)} style={styles.padded}>
@@ -193,7 +185,7 @@ export default function EditDepartmentScreen() {
                       {DEPARTMENT_ICON_IDS.map((icon) => (
                         <CategoryChip
                           key={icon}
-                          label={ICON_LABELS[icon]}
+                          label={DEPARTMENT_ICON_LABELS[icon]}
                           selected={value === icon}
                           onPress={() => onChange(icon)}
                         />

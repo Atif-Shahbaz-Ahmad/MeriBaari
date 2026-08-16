@@ -12,6 +12,7 @@ export default function CustomerLayout() {
   const isRestoringSession = useAuthStore((s) => s.isRestoringSession);
   const isProfileLoading = useAuthStore((s) => s.isProfileLoading);
   const profileLoadFailed = useAuthStore((s) => s.profileLoadFailed);
+  const passwordRecoveryPending = useAuthStore((s) => s.passwordRecoveryPending);
   const session = useAuthStore((s) => s.session);
   const role = useAuthStore((s) => s.role);
 
@@ -23,12 +24,20 @@ export default function CustomerLayout() {
     return <Redirect href={getUnauthenticatedHref()} />;
   }
 
+  if (passwordRecoveryPending) {
+    return <Redirect href={AuthHref.resetPassword} />;
+  }
+
   if (profileLoadFailed) {
     return <Redirect href={AuthHref.profileRecovery} />;
   }
 
   if (!role) {
     return <Redirect href={AuthHref.roleSelect} />;
+  }
+
+  if (role === 'admin') {
+    return <Redirect href={AuthHref.adminHome} />;
   }
 
   if (role !== 'customer') {
@@ -40,6 +49,8 @@ export default function CustomerLayout() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="join-queue" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="tickets" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="favorites" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="assistant" options={{ animation: 'slide_from_right' }} />
     </Stack>
   );
 }

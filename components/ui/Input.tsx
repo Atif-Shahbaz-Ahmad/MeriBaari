@@ -12,6 +12,8 @@ import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/use-translation';
+import { hasTranslationKey } from '@/lib/i18n';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -27,10 +29,16 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
   ref,
 ) {
   const theme = useTheme();
-  const errorText =
+  const { t } = useTranslation();
+  const rawError =
     typeof error === 'string' && error.trim() && error.trim() !== '{}'
       ? error.trim()
       : null;
+  const errorText = rawError
+    ? hasTranslationKey(rawError)
+      ? t(rawError)
+      : rawError
+    : null;
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -39,7 +47,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
         style={[
           styles.field,
           {
-            backgroundColor: theme.background,
+            backgroundColor: theme.input,
             borderColor: errorText ? Colors.error : theme.border,
           },
         ]}

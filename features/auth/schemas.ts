@@ -3,37 +3,48 @@ import { z } from 'zod';
 export const phoneSchema = z.object({
   phone: z
     .string()
-    .min(10, 'Enter a valid phone number')
-    .max(20, 'Phone number is too long')
-    .regex(/^[+\d][\d\s-]*$/, 'Enter a valid phone number'),
+    .min(10, 'validation.phone')
+    .max(20, 'validation.phoneLong')
+    .regex(/^[+\d][\d\s-]*$/, 'validation.phone'),
 });
 
 export const emailSchema = z.object({
-  email: z.string().email('Enter a valid email address'),
+  email: z.string().email('validation.email'),
 });
 
 export const otpSchema = z.object({
   otp: z
     .string()
-    .min(6, 'Enter the verification code')
-    .max(8, 'Code must be 6–8 digits')
-    .regex(/^\d{6,8}$/, 'Enter a 6–8 digit code'),
+    .min(6, 'validation.otp')
+    .max(8, 'validation.otpLength')
+    .regex(/^\d{6,8}$/, 'validation.otpDigits'),
 });
 
 export const loginSchema = z.object({
-  email: z.string().email('Enter a valid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  email: z.string().email('validation.email'),
+  password: z.string().min(6, 'validation.passwordMin'),
 });
 
 export const signUpSchema = z
   .object({
-    fullName: z.string().trim().min(1, 'Enter your name'),
-    email: z.string().email('Enter a valid email address'),
-    password: z.string().min(6, 'Password must be at least 6 characters'),
-    confirmPassword: z.string().min(6, 'Confirm your password'),
+    fullName: z.string().trim().min(1, 'validation.nameRequired'),
+    email: z.string().email('validation.email'),
+    password: z.string().min(6, 'validation.passwordMin'),
+    confirmPassword: z.string().min(6, 'validation.confirmPassword'),
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: 'Passwords do not match',
+    message: 'validation.passwordMismatch',
+    path: ['confirmPassword'],
+  });
+
+/** New password after recovery email / deep link. */
+export const resetPasswordSchema = z
+  .object({
+    password: z.string().min(6, 'validation.passwordMin'),
+    confirmPassword: z.string().min(6, 'validation.confirmPassword'),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'validation.passwordMismatch',
     path: ['confirmPassword'],
   });
 
@@ -46,3 +57,4 @@ export type OtpFormValues = z.infer<typeof otpSchema>;
 export type LoginFormValues = z.infer<typeof loginSchema>;
 export type PasswordFormValues = LoginFormValues;
 export type SignUpFormValues = z.infer<typeof signUpSchema>;
+export type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;

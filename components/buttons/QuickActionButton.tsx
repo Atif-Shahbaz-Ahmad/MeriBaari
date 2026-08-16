@@ -1,14 +1,12 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Clock3, Heart, History, QrCode, Search } from 'lucide-react-native';
+import { Clock3, Heart, History, Search } from 'lucide-react-native';
 
-import { Colors } from '@/constants/colors';
 import { Radius, Shadows, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
 import type { QuickAction } from '@/types';
 
 const ICON_MAP = {
-  scan: QrCode,
   search: Search,
   history: History,
   favorites: Heart,
@@ -26,14 +24,16 @@ export function QuickActionButton({ action, onPress }: QuickActionButtonProps) {
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={action.label}
       style={[
         styles.button,
         Shadows.card,
         { backgroundColor: theme.card, borderColor: theme.border },
       ]}
     >
-      <View style={styles.iconWrap}>
-        <Icon size={20} color={Colors.primary} strokeWidth={2} />
+      <View style={[styles.iconWrap, { backgroundColor: theme.tints.primary.bg }]}>
+        <Icon size={20} color={theme.tints.primary.fg} strokeWidth={2} />
       </View>
       <Text style={[styles.label, { color: theme.text }]}>{action.label}</Text>
     </Pressable>
@@ -53,7 +53,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: Radius.md,
-    backgroundColor: Colors.primary50,
     alignItems: 'center',
     justifyContent: 'center',
   },

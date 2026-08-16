@@ -1,0 +1,20 @@
+[package]
+name = "meribaari-desktop"
+version = "1.0.0"
+description = "MeriBaari Desktop — business queue management"
+authors = ["MeriBaari"]
+edition = "2021"
+license = "UNLICENSED"
+
+[lib]
+name = "meribaari_desktop_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-notification = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

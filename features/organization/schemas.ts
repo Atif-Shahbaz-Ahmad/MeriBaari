@@ -13,22 +13,50 @@ export const organizationFormSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(2, 'Organization name must be at least 2 characters.')
-    .max(80, 'Organization name is too long.'),
+    .min(2, 'validation.orgNameMin')
+    .max(80, 'validation.orgNameMax'),
   category: categorySchema,
-  description: z.string().trim().max(500, 'Description is too long.').optional(),
-  phone: z.string().trim().max(30, 'Phone number is too long.').optional(),
+  description: z.string().trim().max(500, 'validation.descriptionMax').optional(),
+  phone: z.string().trim().max(30, 'validation.phoneMax').optional(),
   email: z
-    .union([z.literal(''), z.string().trim().email('Enter a valid email.')])
+    .union([z.literal(''), z.string().trim().email('validation.emailInvalid')])
     .optional(),
-  address: z.string().trim().max(200, 'Address is too long.').optional(),
-  city: z.string().trim().max(80, 'City name is too long.').optional(),
-  logoUrl: z
+  address: z.string().trim().max(200, 'validation.addressMax').optional(),
+  city: z.string().trim().max(80, 'validation.cityMax').optional(),
+  latitude: z
     .union([
       z.literal(''),
-      z.string().trim().url('Enter a valid image URL, or leave blank.'),
+      z
+        .string()
+        .trim()
+        .refine((value) => {
+          const n = Number(value);
+          return Number.isFinite(n) && n >= -90 && n <= 90;
+        }, 'validation.latitude'),
     ])
     .optional(),
+  longitude: z
+    .union([
+      z.literal(''),
+      z
+        .string()
+        .trim()
+        .refine((value) => {
+          const n = Number(value);
+          return Number.isFinite(n) && n >= -180 && n <= 180;
+        }, 'validation.longitude'),
+    ])
+    .optional(),
+  logoUrl: z.string().trim().optional(),
 });
 
 export type OrganizationFormValues = z.infer<typeof organizationFormSchema>;
+
+export function parseOptionalCoordinate(
+  value: string | undefined,
+): number | null {
+  const trimmed = value?.trim() ?? '';
+  if (!trimmed) return null;
+  const n = Number(trimmed);
+  return Number.isFinite(n) ? n : null;
+}

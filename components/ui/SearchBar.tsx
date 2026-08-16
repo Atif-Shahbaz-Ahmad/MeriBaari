@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, TextInput, View, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, TextInput, type ViewStyle } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Search, X } from 'lucide-react-native';
 

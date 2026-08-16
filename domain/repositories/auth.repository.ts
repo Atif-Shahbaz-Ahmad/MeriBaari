@@ -27,7 +27,10 @@ export interface AuthRepository {
   getSession(): Promise<AuthSession | null>;
   refreshSession(): Promise<AuthSession | null>;
   onAuthStateChange(
-    callback: (session: AuthSession | null) => void,
+    callback: (
+      session: AuthSession | null,
+      event?: string,
+    ) => void,
   ): Unsubscribe;
 
   sendOtp(channel: OtpChannel, destination: string): Promise<void>;
@@ -45,6 +48,8 @@ export interface AuthRepository {
   /** Opens Google OAuth (browser) and returns an app session. */
   signInWithGoogle(): Promise<AuthSession>;
   resetPassword(email: string): Promise<void>;
+  /** Set a new password for the currently authenticated (recovery) session. */
+  updatePassword(password: string): Promise<void>;
   /** Resend signup confirmation email (default Supabase Auth email). */
   resendSignupEmail(email: string): Promise<void>;
 

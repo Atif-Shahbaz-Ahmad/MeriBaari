@@ -91,7 +91,7 @@ function ThemeOption({
           },
         ]}
       >
-        <View style={[styles.icon, { backgroundColor: selected ? Colors.primary50 : theme.background }]}>
+        <View style={[styles.icon, { backgroundColor: selected ? theme.tints.primary.bg : theme.background }]}>
           <Icon size={20} color={selected ? Colors.primary : theme.icon} strokeWidth={2} />
         </View>
         <View style={styles.copy}>

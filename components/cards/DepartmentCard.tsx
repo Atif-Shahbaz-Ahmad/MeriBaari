@@ -4,28 +4,16 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
-import {
-  Car,
-  CircleDot,
-  Eye,
-  FileText,
-  FlaskConical,
-  HeartPulse,
-  ScanLine,
-  Siren,
-  Stethoscope,
-  Users,
-} from 'lucide-react-native';
 
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Colors } from '@/constants/colors';
 import { Radius, Shadows, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
+import { getDepartmentIconComponent } from '@/lib/department-icons';
 import { formatWaitTime } from '@/utils/formatting';
-import type { AvailabilityStatus } from '@/types';
+import type { AvailabilityStatus, Department as CatalogDepartment } from '@/types';
 import type { Department as DomainDepartment } from '@/domain/models';
-import type { Department as CatalogDepartment } from '@/types';
 
 type DepartmentCardModel = DomainDepartment | CatalogDepartment;
 
@@ -35,25 +23,12 @@ interface DepartmentCardProps {
   onPress?: () => void;
 }
 
-const DEPT_ICONS = {
-  stethoscope: Stethoscope,
-  heart: HeartPulse,
-  tooth: CircleDot,
-  eye: Eye,
-  siren: Siren,
-  scan: ScanLine,
-  flask: FlaskConical,
-  users: Users,
-  file: FileText,
-  car: Car,
-} as const;
-
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function DepartmentCard({ department, selected = false, onPress }: DepartmentCardProps) {
   const theme = useTheme();
   const scale = useSharedValue(1);
-  const Icon = DEPT_ICONS[department.icon] ?? Stethoscope;
+  const Icon = getDepartmentIconComponent(department.icon);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -79,7 +54,7 @@ export function DepartmentCard({ department, selected = false, onPress }: Depart
         },
       ]}
     >
-      <View style={styles.iconWrap}>
+      <View style={[styles.iconWrap, { backgroundColor: theme.tints.primary.bg }]}>
         <Icon size={22} color={Colors.primary} strokeWidth={2} />
       </View>
 
@@ -122,7 +97,6 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: Radius.md,
-    backgroundColor: Colors.primary50,
     alignItems: 'center',
     justifyContent: 'center',
   },

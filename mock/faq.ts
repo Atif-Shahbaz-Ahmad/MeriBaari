@@ -106,6 +106,34 @@ export const MOCK_FAQ: FaqItem[] = [
 
   },
 
+  {
+
+    id: 'faq-8',
+
+    question: 'When can a business pay the next subscription fee?',
+
+    answer:
+
+      'After an administrator approves a payment, the business owner can submit the next subscription fee only after 31 days from that approval date.',
+
+    category: 'account',
+
+  },
+
+  {
+
+    id: 'faq-9',
+
+    question: 'Can MeriBaari hide a business from customers?',
+
+    answer:
+
+      'Yes. Administrators may hide a business if there are complaints, bad reviews, or behaviour issues. The subscription can stay active, but customers will not see the business until an admin restores visibility.',
+
+    category: 'account',
+
+  },
+
 ];
 
 
@@ -158,19 +186,9 @@ export const MOCK_ABOUT: AboutContent = {
 
   ],
 
-  social: [
+  supportEmail: 'atif.s.ahmad2@gmail.com',
 
-    { label: 'Twitter / X', handle: '@meribaari' },
-
-    { label: 'Instagram', handle: '@meribaari.app' },
-
-    { label: 'LinkedIn', handle: 'MeriBaari' },
-
-  ],
-
-  supportEmail: 'support@meribaari.app',
-
-  supportPhone: '+92 300 0000000',
+  supportPhone: '+92 324 9780380',
 
 };
 

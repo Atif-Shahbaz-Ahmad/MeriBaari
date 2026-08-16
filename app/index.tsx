@@ -1,6 +1,6 @@
 import { Redirect } from 'expo-router';
 import { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -24,6 +24,8 @@ export default function SplashGate() {
   const scheme = useColorScheme();
   const { isReady, isAuthenticated, hasCompletedOnboarding, role } = useAppBootstrap();
   const profileLoadFailed = useAuthStore((s) => s.profileLoadFailed);
+  const passwordRecoveryPending = useAuthStore((s) => s.passwordRecoveryPending);
+  const isRestoringSession = useAuthStore((s) => s.isRestoringSession);
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.92);
 
@@ -56,6 +58,9 @@ export default function SplashGate() {
     if (!isAuthenticated) {
       return <Redirect href={getUnauthenticatedHref()} />;
     }
+    if (passwordRecoveryPending) {
+      return <Redirect href={AuthHref.resetPassword} />;
+    }
     if (profileLoadFailed) {
       return <Redirect href={AuthHref.profileRecovery} />;
     }
@@ -75,8 +80,12 @@ export default function SplashGate() {
       <Animated.View style={animatedStyle}>
         <Logo variant={isDark ? 'dark' : 'light'} size="lg" showTagline />
       </Animated.View>
-      <View style={styles.footerDot}>
-        <View style={[styles.dot, { backgroundColor: Colors.secondary }]} />
+      <View style={styles.footer}>
+        {isRestoringSession ? (
+          <ActivityIndicator color={Colors.primary} />
+        ) : (
+          <View style={[styles.dot, { backgroundColor: Colors.secondary }]} />
+        )}
       </View>
     </Animated.View>
   );
@@ -88,9 +97,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  footerDot: {
+  footer: {
     position: 'absolute',
     bottom: 64,
+    minHeight: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dot: {
     width: 8,

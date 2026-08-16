@@ -64,7 +64,10 @@ export default function CreateServiceScreen() {
     return (
       <Screen>
         <FlowHeader title="Add Service" onBack={() => router.back()} />
-        <EmptyState title="Department not found" />
+        <EmptyState
+          title="Department not found"
+          description="This department may have been removed or is no longer available."
+        />
       </Screen>
     );
   }
@@ -96,11 +99,12 @@ export default function CreateServiceScreen() {
     <Screen padded={false} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
           <Animated.View entering={FadeInDown.duration(400)} style={styles.padded}>

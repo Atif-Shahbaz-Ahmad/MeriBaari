@@ -1,4 +1,12 @@
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useMemo, useState } from 'react';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { CheckCheck, Trash2 } from 'lucide-react-native';
@@ -14,6 +22,7 @@ import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/use-translation';
 import {
   useClearAllNotifications,
   useDeleteNotification,
@@ -29,6 +38,7 @@ type NotifTab = NotificationCategory | 'all';
 
 export default function NotificationsScreen() {
   const theme = useTheme();
+  const { t } = useTranslation();
   const {
     data: notifications = [],
     isLoading,
@@ -42,6 +52,7 @@ export default function NotificationsScreen() {
   const clearAll = useClearAllNotifications();
 
   const [tab, setTab] = useState<NotifTab>('all');
+  const [pendingId, setPendingId] = useState<string | null>(null);
 
   const unreadCount = useMemo(
     () => notifications.filter((n) => !(n.isRead ?? n.read)).length,
@@ -58,59 +69,84 @@ export default function NotificationsScreen() {
     [filtered],
   );
 
+  const inboxBusy =
+    markAllAsRead.isPending ||
+    clearAll.isPending ||
+    markAsRead.isPending ||
+    deleteNotification.isPending;
+
   const tabs = [
-    { key: 'all' as const, label: 'All', count: notifications.length },
+    { key: 'all' as const, label: t('notifications.tabAll'), count: notifications.length },
     {
       key: 'queue' as const,
-      label: 'Queue',
+      label: t('notifications.tabQueue'),
       count: notifications.filter((n) => n.category === 'queue').length,
     },
     {
       key: 'reminders' as const,
-      label: 'Reminders',
+      label: t('notifications.tabReminders'),
       count: notifications.filter((n) => n.category === 'reminders').length,
     },
     {
       key: 'system' as const,
-      label: 'System',
+      label: t('notifications.tabSystem'),
       count: notifications.filter((n) => n.category === 'system').length,
     },
     {
       key: 'promotions' as const,
-      label: 'Promos',
+      label: t('notifications.tabPromos'),
       count: notifications.filter((n) => n.category === 'promotions').length,
     },
   ];
 
+  const runItemAction = (id: string, action: () => void) => {
+    if (inboxBusy) return;
+    setPendingId(id);
+    action();
+  };
+
   const onOpen = (id: string) => {
     const item = notifications.find((n) => n.id === id);
-    if (!item) return;
+    if (!item || inboxBusy) return;
     if (!(item.isRead ?? item.read)) {
-      markAsRead.mutate(id);
+      setPendingId(id);
+      markAsRead.mutate(id, {
+        onSettled: () => setPendingId(null),
+      });
     }
     navigateFromNotification(item);
   };
 
   const onLongPress = (id: string, title: string) => {
-    Alert.alert(title, 'Choose an action', [
+    if (inboxBusy) return;
+    Alert.alert(title, t('notifications.chooseAction'), [
       {
-        text: 'Mark as read',
-        onPress: () => markAsRead.mutate(id),
+        text: t('notifications.markAsRead'),
+        onPress: () =>
+          runItemAction(id, () =>
+            markAsRead.mutate(id, { onSettled: () => setPendingId(null) }),
+          ),
       },
       {
-        text: 'Delete',
+        text: t('notifications.delete'),
         style: 'destructive',
-        onPress: () => deleteNotification.mutate(id),
+        onPress: () =>
+          runItemAction(id, () =>
+            deleteNotification.mutate(id, {
+              onSettled: () => setPendingId(null),
+            }),
+          ),
       },
-      { text: 'Cancel', style: 'cancel' },
+      { text: t('common.cancel'), style: 'cancel' },
     ]);
   };
 
   const onClearAll = () => {
-    Alert.alert('Clear all notifications?', 'This removes every notification from your inbox.', [
-      { text: 'Cancel', style: 'cancel' },
+    if (clearAll.isPending || notifications.length === 0) return;
+    Alert.alert(t('notifications.clearConfirmTitle'), t('notifications.clearConfirmBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Clear all',
+        text: t('notifications.clearAll'),
         style: 'destructive',
         onPress: () => clearAll.mutate(),
       },
@@ -129,11 +165,11 @@ export default function NotificationsScreen() {
     return (
       <Screen>
         <ErrorState
-          title="Could not load notifications"
+          title={t('notifications.loadError')}
           description={
             error instanceof Error
               ? error.message
-              : 'Check your connection and try again.'
+              : t('notifications.loadErrorHint')
           }
           onRetry={() => void refetch()}
         />
@@ -148,11 +184,13 @@ export default function NotificationsScreen() {
           <View style={styles.titleRow}>
             <View style={styles.titleBlock}>
               <SectionTitle
-                title="Notifications"
+                title={t('notifications.title')}
                 subtitle={
                   unreadCount > 0
-                    ? `${unreadCount} unread update${unreadCount === 1 ? '' : 's'}`
-                    : 'Stay updated on your queues'
+                    ? unreadCount === 1
+                      ? t('notifications.subtitleUnread', { count: unreadCount })
+                      : t('notifications.subtitleUnread_plural', { count: unreadCount })
+                    : t('notifications.subtitleEmpty')
                 }
               />
             </View>
@@ -160,24 +198,64 @@ export default function NotificationsScreen() {
           {notifications.length > 0 ? (
             <View style={styles.actions}>
               <Pressable
-                onPress={() => markAllAsRead.mutate()}
-                style={[styles.actionChip, { backgroundColor: Colors.primary50 }]}
+                onPress={() => {
+                  if (markAllAsRead.isPending || unreadCount === 0) return;
+                  markAllAsRead.mutate();
+                }}
+                disabled={markAllAsRead.isPending || unreadCount === 0 || clearAll.isPending}
+                style={[
+                  styles.actionChip,
+                  {
+                    backgroundColor: theme.tints.primary.bg,
+                    opacity:
+                      markAllAsRead.isPending || unreadCount === 0 || clearAll.isPending
+                        ? 0.55
+                        : 1,
+                  },
+                ]}
                 accessibilityRole="button"
-                accessibilityLabel="Mark all as read"
+                accessibilityLabel={t('notifications.markAllA11y')}
+                accessibilityState={{
+                  disabled: markAllAsRead.isPending || unreadCount === 0,
+                  busy: markAllAsRead.isPending,
+                }}
                 hitSlop={8}
               >
-                <CheckCheck size={16} color={Colors.primary} />
-                <Text style={[styles.actionText, { color: Colors.primary }]}>Mark all read</Text>
+                {markAllAsRead.isPending ? (
+                  <ActivityIndicator size="small" color={Colors.primary} />
+                ) : (
+                  <CheckCheck size={16} color={Colors.primary} />
+                )}
+                <Text style={[styles.actionText, { color: Colors.primary }]}>
+                  {t('notifications.markAllRead')}
+                </Text>
               </Pressable>
               <Pressable
                 onPress={onClearAll}
-                style={[styles.actionChip, { backgroundColor: Colors.error50 }]}
+                disabled={clearAll.isPending || markAllAsRead.isPending}
+                style={[
+                  styles.actionChip,
+                  {
+                    backgroundColor: theme.tints.error.bg,
+                    opacity: clearAll.isPending || markAllAsRead.isPending ? 0.55 : 1,
+                  },
+                ]}
                 accessibilityRole="button"
-                accessibilityLabel="Clear all notifications"
+                accessibilityLabel={t('notifications.clearAllA11y')}
+                accessibilityState={{
+                  disabled: clearAll.isPending,
+                  busy: clearAll.isPending,
+                }}
                 hitSlop={8}
               >
-                <Trash2 size={16} color={Colors.error} />
-                <Text style={[styles.actionText, { color: Colors.error }]}>Clear all</Text>
+                {clearAll.isPending ? (
+                  <ActivityIndicator size="small" color={Colors.error} />
+                ) : (
+                  <Trash2 size={16} color={Colors.error} />
+                )}
+                <Text style={[styles.actionText, { color: Colors.error }]}>
+                  {t('notifications.clearAll')}
+                </Text>
               </Pressable>
             </View>
           ) : null}
@@ -190,8 +268,16 @@ export default function NotificationsScreen() {
         {groups.length === 0 ? (
           <EmptyState
             preset="notifications"
-            title="No notifications yet"
-            description="You'll see queue updates and important alerts here."
+            title={
+              notifications.length > 0
+                ? t('notifications.emptyFilteredTitle')
+                : t('notifications.emptyTitle')
+            }
+            description={
+              notifications.length > 0
+                ? t('notifications.emptyFilteredDescription')
+                : t('notifications.emptyDescription')
+            }
           />
         ) : (
           groups.map((group, groupIndex) => (
@@ -207,6 +293,8 @@ export default function NotificationsScreen() {
                     key={item.id}
                     notification={item}
                     index={index}
+                    disabled={inboxBusy}
+                    loading={pendingId === item.id && (markAsRead.isPending || deleteNotification.isPending)}
                     onPress={() => onOpen(item.id)}
                     onLongPress={() => onLongPress(item.id, item.title)}
                   />

@@ -3,6 +3,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
   Building2,
   Clock3,
+  MapPin,
   Megaphone,
   PauseCircle,
   PlayCircle,
@@ -17,8 +18,11 @@ import {
   QueueOverviewCard,
   QuickActionTile,
 } from '@/components/business';
+import { ChatFloatingButton } from '@/components/chatbot/ChatFloatingButton';
 import { PrimaryButton } from '@/components/buttons/PrimaryButton';
 import { Screen } from '@/components/layout/Screen';
+import { LocationMapPreview } from '@/components/organization/LocationMapPreview';
+import { SubscriptionStatusCard } from '@/components/subscription/SubscriptionStatusCard';
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -26,10 +30,12 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { SectionHeader } from '@/components/ui/SectionHeader';
+import { PAYMENT_CONFIG } from '@/config/payment';
 import { getOrganizationCategoryLabel } from '@/constants/organization-categories';
 import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { isOrganizationPublic, nextSubscriptionPaymentAt } from '@/domain/models';
 import { getOrganizationErrorMessage } from '@/domain/errors/organization-error';
 import { getQueueErrorMessage } from '@/domain/errors/queue-error';
 import {
@@ -40,6 +46,7 @@ import {
   pushQueueTab,
   pushWalkIn,
 } from '@/features/business/navigation';
+import { pushBusinessAssistant } from '@/features/chatbot/navigation';
 import { useMyOrganization } from '@/features/organization/hooks/use-organizations';
 import {
   useCallNext,
@@ -50,10 +57,14 @@ import { useBusinessQueues } from '@/features/queue/hooks/use-queue-queries';
 import { useBusinessQueueRealtime } from '@/features/queue/hooks/use-queue-realtime';
 import { useAuth } from '@/hooks/use-auth';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/use-translation';
 import { dataAccess } from '@/data';
+import { hasValidCoords } from '@/lib/geo';
+import { pushSubscriptionPay } from '@/features/subscription/navigation';
 
 export default function BusinessDashboardScreen() {
   const theme = useTheme();
+  const { t } = useTranslation();
   const { user } = useAuth();
   const name = user?.fullName?.split(' ')[0] ?? 'there';
   const {
@@ -95,7 +106,7 @@ export default function BusinessDashboardScreen() {
     return (
       <Screen>
         <ErrorState
-          title="Could not load organization"
+          title={t('business.dashboard.loadOrgError')}
           description={getOrganizationErrorMessage(error)}
           onRetry={() => void refetch()}
         />
@@ -112,25 +123,24 @@ export default function BusinessDashboardScreen() {
         >
           <Animated.View entering={FadeInDown.duration(400)} style={styles.padded}>
             <Card style={styles.onboardingCard}>
-              <View style={[styles.onboardingIcon, { backgroundColor: Colors.primary50 }]}>
-                <Building2 size={32} color={Colors.primary} strokeWidth={1.75} />
+              <View style={[styles.onboardingIcon, { backgroundColor: theme.tints.primary.bg }]}>
+                <Building2 size={32} color={theme.tints.primary.fg} strokeWidth={1.75} />
               </View>
               <Text style={[styles.onboardingTitle, { color: theme.text }]}>
-                Create Your Organization
+                {t('business.dashboard.createOrgTitle')}
               </Text>
               <Text style={[styles.onboardingBody, { color: theme.textSecondary }]}>
-                Set up your business profile so customers can discover you and join
-                your queues. Departments and queues can be added next.
+                {t('business.dashboard.createOrgBody')}
               </Text>
               <PrimaryButton
-                title="Create Organization"
+                title={t('business.dashboard.createOrgCta')}
                 onPress={pushCreateOrganization}
               />
             </Card>
           </Animated.View>
           <EmptyState
-            title={`Welcome, ${name}`}
-            description="Your business dashboard will appear here after you create an organization."
+            title={t('business.dashboard.welcomeName', { name })}
+            description={t('business.dashboard.welcomeBody')}
           />
         </ScrollView>
       </Screen>
@@ -141,6 +151,14 @@ export default function BusinessDashboardScreen() {
   const locationLabel = [organization.city, organization.address]
     .filter(Boolean)
     .join(' · ');
+  const hasCoords = hasValidCoords(
+    organization.latitude,
+    organization.longitude,
+  );
+  const hasAddressText = Boolean(
+    organization.address?.trim() || organization.city?.trim(),
+  );
+  const missingCoordsWarning = hasAddressText && !hasCoords;
 
   return (
     <Screen padded={false}>
@@ -161,11 +179,14 @@ export default function BusinessDashboardScreen() {
                   {locationLabel ? ` · ${locationLabel}` : ''}
                 </Text>
                 <Text style={styles.orgStatus}>
-                  {organization.isActive ? 'Active' : 'Inactive'} ·{' '}
+                  {organization.isActive
+                    ? t('business.dashboard.active')
+                    : t('business.dashboard.inactive')}{' '}
+                  ·{' '}
                   {organization.description
                     ? organization.description.slice(0, 80) +
                       (organization.description.length > 80 ? '…' : '')
-                    : 'No description yet'}
+                    : t('business.dashboard.noDescription')}
                 </Text>
               </View>
             </View>
@@ -174,46 +195,133 @@ export default function BusinessDashboardScreen() {
             </Text>
             <Text style={styles.date}>{dataAccess.formatBusinessDate()}</Text>
             <Button
-              title="Manage organization"
+              title={t('business.dashboard.manageOrganization')}
               variant="secondary"
               size="sm"
-              leftIcon={<Settings2 size={16} color={Colors.primary} />}
+              leftIcon={<Settings2 size={16} color={theme.tints.primary.fg} />}
               onPress={pushEditOrganization}
               style={styles.manageButton}
             />
           </View>
         </Animated.View>
 
+        <Animated.View entering={FadeInDown.delay(40).duration(400)} style={styles.padded}>
+          <SubscriptionStatusCard
+            status={organization.subscriptionStatus}
+            visibleToCustomers={isOrganizationPublic(organization)}
+            adminHidden={organization.adminHidden}
+            adminHiddenReason={organization.adminHiddenReason}
+            rejectionReason={organization.paymentRejectionReason}
+            cooldownUntil={nextSubscriptionPaymentAt(
+              organization.approvedAt,
+              PAYMENT_CONFIG.renewalCooldownDays,
+            )}
+            onSubscribe={pushSubscriptionPay}
+            onResubmit={pushSubscriptionPay}
+          />
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(80).duration(400)} style={styles.padded}>
+          <Card style={styles.locationCard}>
+            <View style={styles.locationHeader}>
+              <MapPin size={18} color={Colors.primary} />
+              <Text style={[styles.locationTitle, { color: theme.text }]}>
+                {t('business.dashboard.businessLocation')}
+              </Text>
+            </View>
+
+            {hasCoords ? (
+              <LocationMapPreview
+                latitude={organization.latitude}
+                longitude={organization.longitude}
+                label={organization.name}
+                address={organization.address}
+                city={organization.city}
+              />
+            ) : (
+              <>
+                {organization.address?.trim() ? (
+                  <Text style={[styles.locationLine, { color: theme.text }]}>
+                    {organization.address.trim()}
+                  </Text>
+                ) : (
+                  <Text style={[styles.locationMuted, { color: theme.textMuted }]}>
+                    {t('maps.noStreetAddress')}
+                  </Text>
+                )}
+
+                {organization.city?.trim() ? (
+                  <Text
+                    style={[styles.locationLine, { color: theme.textSecondary }]}
+                  >
+                    {organization.city.trim()}
+                  </Text>
+                ) : null}
+              </>
+            )}
+
+            {missingCoordsWarning ? (
+              <View
+                style={[
+                  styles.warningBox,
+                  { backgroundColor: theme.tints.accent.bg, borderColor: theme.tints.accent.border },
+                ]}
+              >
+                <Text style={[styles.warningText, { color: theme.text }]}>
+                  {t('business.dashboard.missingCoords')}
+                </Text>
+                <Button
+                  title={t('business.dashboard.addLocation')}
+                  variant="outline"
+                  size="sm"
+                  onPress={pushEditOrganization}
+                  fullWidth={false}
+                  style={styles.warningAction}
+                />
+              </View>
+            ) : null}
+
+            {!hasCoords && !missingCoordsWarning ? (
+              <Button
+                title={t('business.dashboard.setLocation')}
+                variant="ghost"
+                size="sm"
+                onPress={pushEditOrganization}
+              />
+            ) : null}
+          </Card>
+        </Animated.View>
+
         <View style={styles.padded}>
           <View style={styles.statsRow}>
             <BusinessStatCard
-              label="Active Queues"
+              label={t('business.dashboard.statActiveQueues')}
               value={queues.filter((q) => q.status === 'active').length}
-              icon={<Users size={18} color={Colors.primary} />}
+              icon={<Users size={18} color={theme.tints.primary.fg} />}
               accent="blue"
               index={0}
             />
             <BusinessStatCard
-              label="Customers Waiting"
+              label={t('business.dashboard.statWaiting')}
               value={waitingFromQueues}
-              icon={<Clock3 size={18} color={Colors.accent} />}
+              icon={<Clock3 size={18} color={theme.tints.accent.fg} />}
               accent="orange"
               index={1}
             />
           </View>
           <View style={styles.statsRow}>
             <BusinessStatCard
-              label="Open Services"
+              label={t('business.dashboard.statOpenServices')}
               value={queues.length}
-              icon={<UserCheck size={18} color={Colors.secondary600} />}
+              icon={<UserCheck size={18} color={theme.tints.secondary.fg} />}
               accent="green"
               index={2}
             />
             <BusinessStatCard
-              label="Avg. Waiting Time"
+              label={t('business.dashboard.statAvgWait')}
               value={avgWait}
-              suffix=" min"
-              icon={<Clock3 size={18} color={Colors.primary} />}
+              suffix={t('common.minutesSuffix')}
+              icon={<Clock3 size={18} color={theme.tints.primary.fg} />}
               accent="blue"
               index={3}
             />
@@ -221,12 +329,14 @@ export default function BusinessDashboardScreen() {
         </View>
 
         <Animated.View entering={FadeInDown.delay(160).duration(400)} style={styles.padded}>
-          <SectionHeader title="Quick actions" subtitle="Control your active queue" />
+          <SectionHeader title={t('business.dashboard.quickActions')} subtitle={t('business.dashboard.quickActionsSubtitle')} />
           <View style={styles.actions}>
             <QuickActionTile
-              label="Call Next"
-              icon={<Megaphone size={20} color={Colors.primary} />}
+              label={t('business.dashboard.callNext')}
+              icon={<Megaphone size={20} color={theme.tints.primary.fg} />}
               tint="blue"
+              loading={callNextMutation.isPending}
+              disabled={callNextMutation.isPending}
               onPress={() => {
                 if (!selected) {
                   pushQueueTab();
@@ -235,37 +345,39 @@ export default function BusinessDashboardScreen() {
                 void callNextMutation
                   .mutateAsync(selected.id)
                   .then(() => pushQueueTab())
-                  .catch((e) => Alert.alert('Call next', getQueueErrorMessage(e)));
+                    .catch((e) => Alert.alert(t('business.dashboard.alertCallNext'), getQueueErrorMessage(e)));
               }}
             />
             <QuickActionTile
-              label="Add Walk-in Customer"
-              icon={<UserPlus size={20} color={Colors.secondary600} />}
+              label={t('business.dashboard.walkIn')}
+              icon={<UserPlus size={20} color={theme.tints.secondary.fg} />}
               tint="green"
               onPress={pushWalkIn}
             />
             <QuickActionTile
-              label="Pause Queue"
-              icon={<PauseCircle size={20} color="#B45309" />}
+              label={t('business.dashboard.pauseQueue')}
+              icon={<PauseCircle size={20} color={theme.tints.accent.fg} />}
               tint="orange"
-              disabled={!selected || selected.status === 'paused'}
+              loading={pauseQueueMutation.isPending}
+              disabled={!selected || selected.status === 'paused' || pauseQueueMutation.isPending}
               onPress={() => {
                 if (!selected) return;
                 void pauseQueueMutation
                   .mutateAsync(selected.id)
-                  .catch((e) => Alert.alert('Pause queue', getQueueErrorMessage(e)));
+                  .catch((e) => Alert.alert(t('business.dashboard.alertPauseQueue'), getQueueErrorMessage(e)));
               }}
             />
             <QuickActionTile
-              label="Resume Queue"
-              icon={<PlayCircle size={20} color={Colors.secondary600} />}
+              label={t('business.dashboard.resumeQueue')}
+              icon={<PlayCircle size={20} color={theme.tints.secondary.fg} />}
               tint="green"
-              disabled={!selected || selected.status === 'active'}
+              loading={resumeQueueMutation.isPending}
+              disabled={!selected || selected.status === 'active' || resumeQueueMutation.isPending}
               onPress={() => {
                 if (!selected) return;
                 void resumeQueueMutation
                   .mutateAsync(selected.id)
-                  .catch((e) => Alert.alert('Resume queue', getQueueErrorMessage(e)));
+                  .catch((e) => Alert.alert(t('business.dashboard.alertResumeQueue'), getQueueErrorMessage(e)));
               }}
             />
           </View>
@@ -273,15 +385,15 @@ export default function BusinessDashboardScreen() {
 
         <View style={styles.padded}>
           <SectionHeader
-            title="Current active queues"
-            subtitle="Tap a queue to manage it"
-            actionLabel="Activity"
+            title={t('business.dashboard.activeQueues')}
+            subtitle={t('business.dashboard.activeQueuesSubtitle')}
+            actionLabel={t('business.dashboard.activity')}
             onActionPress={() => pushQueueActivity()}
           />
           {queues.length === 0 ? (
             <EmptyState
-              title="No active queues"
-              description="Queues are created automatically when customers join your services."
+              title={t('business.dashboard.noQueuesTitle')}
+              description={t('business.dashboard.noQueuesDescription')}
             />
           ) : (
             queues.map((queue, index) => (
@@ -298,11 +410,15 @@ export default function BusinessDashboardScreen() {
               style={[styles.detailsLink, { color: Colors.primary }]}
               onPress={() => pushQueueDetails(selected.id)}
             >
-              View details for {selected.name} →
+              {t('business.dashboard.viewDetails', { name: selected.name })}
             </Text>
           ) : null}
         </View>
       </ScrollView>
+      <ChatFloatingButton
+        onPress={pushBusinessAssistant}
+        accessibilityLabel={t('businessChatbot.openA11y')}
+      />
     </Screen>
   );
 }
@@ -310,7 +426,7 @@ export default function BusinessDashboardScreen() {
 const styles = StyleSheet.create({
   content: {
     paddingTop: Spacing.md,
-    paddingBottom: Spacing['3xl'],
+    paddingBottom: Spacing['4xl'] + Spacing.xl,
     gap: Spacing.lg,
   },
   onboardingContent: {
@@ -384,6 +500,35 @@ const styles = StyleSheet.create({
   },
   manageButton: {
     marginTop: Spacing.xs,
+    alignSelf: 'flex-start',
+  },
+  locationCard: {
+    gap: Spacing.sm,
+  },
+  locationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  locationTitle: {
+    ...Typography.bodyMedium,
+  },
+  locationLine: {
+    ...Typography.body,
+  },
+  locationMuted: {
+    ...Typography.caption,
+  },
+  warningBox: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  warningText: {
+    ...Typography.caption,
+  },
+  warningAction: {
     alignSelf: 'flex-start',
   },
   statsRow: {

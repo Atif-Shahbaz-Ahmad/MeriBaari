@@ -198,23 +198,23 @@ export default function BusinessQueueScreen() {
             </View>
 
             <View style={styles.metaGrid}>
-              <View style={[styles.metaItem, { backgroundColor: Colors.primary50 }]}>
-                <Text style={[styles.metaValue, { color: Colors.primary700 }]}>
+              <View style={[styles.metaItem, { backgroundColor: theme.tints.primary.bg }]}>
+                <Text style={[styles.metaValue, { color: theme.tints.primary.fg }]}>
                   {queue.waitingCount}
                 </Text>
-                <Text style={[styles.metaLabel, { color: Colors.primary }]}>Waiting</Text>
+                <Text style={[styles.metaLabel, { color: theme.primary }]}>Waiting</Text>
               </View>
-              <View style={[styles.metaItem, { backgroundColor: Colors.accent50 }]}>
-                <Text style={[styles.metaValue, { color: '#B45309' }]}>
+              <View style={[styles.metaItem, { backgroundColor: theme.tints.accent.bg }]}>
+                <Text style={[styles.metaValue, { color: theme.tints.accent.fg }]}>
                   {formatWaitTime(queue.averageWaitMinutes)}
                 </Text>
-                <Text style={[styles.metaLabel, { color: '#B45309' }]}>Avg. wait</Text>
+                <Text style={[styles.metaLabel, { color: theme.tints.accent.fg }]}>Avg. wait</Text>
               </View>
-              <View style={[styles.metaItem, { backgroundColor: Colors.secondary50 }]}>
-                <Text style={[styles.metaValue, { color: Colors.secondary600 }]}>
+              <View style={[styles.metaItem, { backgroundColor: theme.tints.secondary.bg }]}>
+                <Text style={[styles.metaValue, { color: theme.tints.secondary.fg }]}>
                   {details?.completedToday ?? 0}
                 </Text>
-                <Text style={[styles.metaLabel, { color: Colors.secondary600 }]}>
+                <Text style={[styles.metaLabel, { color: theme.tints.secondary.fg }]}>
                   Served today
                 </Text>
               </View>
@@ -298,6 +298,7 @@ export default function BusinessQueueScreen() {
                 key={customer.id}
                 customer={customer}
                 index={index}
+                disabled={busy}
                 onCall={() =>
                   void runAction('Start serving', () =>
                     startServing.mutateAsync(customer.id),

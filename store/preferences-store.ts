@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 
 import { StorageKeys } from '@/constants/config';
+import { applyLanguage } from '@/lib/i18n/rtl';
+import { setLocale } from '@/lib/i18n';
 import { secureStorage } from '@/lib/secure-store';
 import { dataAccess } from '@/data';
 import type { AppLanguage, UserPreferences } from '@/types';
@@ -50,18 +52,26 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
       const raw = await secureStorage.getItem(StorageKeys.userPreferences);
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<UserPreferences>;
-        set({ ...DEFAULT_PREFERENCES, ...parsed, isHydrated: true });
+        const merged = { ...DEFAULT_PREFERENCES, ...parsed };
+        set({ ...merged, isHydrated: true });
+        applyLanguage(merged.language);
         return;
       }
     } catch {
       // ignore corrupt prefs
     }
+    setLocale(DEFAULT_PREFERENCES.language);
     set({ isHydrated: true });
   },
 
   setLanguage: async (language) => {
     set({ language });
-    await persist(pickPrefs(get()));
+    applyLanguage(language);
+    try {
+      await persist(pickPrefs(get()));
+    } catch {
+      // Persistence must never block the visible language switch.
+    }
   },
 
   setPreference: async (key, value) => {

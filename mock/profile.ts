@@ -22,5 +22,6 @@ export const MOCK_BUSINESS_PROFILE_STATS = {
 export function getRoleDisplayLabel(role: UserRole | null | undefined): string {
   if (role === 'business') return 'Business Owner';
   if (role === 'customer') return 'Customer';
+  if (role === 'admin') return 'Administrator';
   return 'Not set';
 }

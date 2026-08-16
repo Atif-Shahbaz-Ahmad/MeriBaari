@@ -20,8 +20,7 @@ import {
   pushDepartmentDetails,
 } from '@/features/business/navigation';
 import { useMyOrganization } from '@/features/organization/hooks/use-organizations';
-import { useDepartments } from '@/features/structure/hooks/use-structure-queries';
-import { useServices } from '@/features/structure/hooks/use-structure-queries';
+import { useDepartments, useServices } from '@/features/structure/hooks/use-structure-queries';
 import { useTheme } from '@/hooks/use-theme';
 import type { Department } from '@/domain/models';
 
@@ -64,8 +63,8 @@ function DepartmentRow({
                 styles.pill,
                 {
                   backgroundColor: department.isActive
-                    ? Colors.secondary50
-                    : Colors.error50,
+                    ? theme.tints.secondary.bg
+                    : theme.tints.error.bg,
                 },
               ]}
             >
@@ -73,8 +72,8 @@ function DepartmentRow({
                 style={{
                   ...Typography.caption,
                   color: department.isActive
-                    ? Colors.secondary600
-                    : Colors.error,
+                    ? theme.tints.secondary.fg
+                    : theme.tints.error.fg,
                 }}
               >
                 {department.isActive ? 'Active' : 'Inactive'}

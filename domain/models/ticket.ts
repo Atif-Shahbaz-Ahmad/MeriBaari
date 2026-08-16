@@ -29,7 +29,6 @@ export interface Ticket {
   qrCode: string;
   createdAt: string;
   updatedAt: string;
-  /** Alias of createdAt for QR-era callers. */
   generatedAt: string;
 }
 

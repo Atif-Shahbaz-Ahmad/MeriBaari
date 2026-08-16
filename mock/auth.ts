@@ -39,10 +39,11 @@ export function createMockSession(
 export const ROLE_LABELS: Record<UserRole, string> = {
   customer: 'Customer',
   business: 'Business Owner',
+  admin: 'Administrator',
 };
 
 export const ROLE_CARD_COPY: Record<
-  UserRole,
+  'customer' | 'business',
   { title: string; description: string; bullets: string[] }
 > = {
   customer: {

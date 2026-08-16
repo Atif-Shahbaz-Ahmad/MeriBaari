@@ -3,6 +3,8 @@
  * Use these constants instead of hardcoding category strings in UI or services.
  */
 
+import { t } from '@/lib/i18n';
+
 export const ORGANIZATION_CATEGORY_IDS = [
   'barber_shop',
   'clinic',
@@ -47,10 +49,6 @@ export const ORGANIZATION_CATEGORIES_WITH_ALL: Array<{
   ...ORGANIZATION_CATEGORY_OPTIONS.map(({ id, label }) => ({ id, label })),
 ];
 
-const LABEL_BY_ID: Record<OrganizationCategoryId, string> = Object.fromEntries(
-  ORGANIZATION_CATEGORY_OPTIONS.map((o) => [o.id, o.label]),
-) as Record<OrganizationCategoryId, string>;
-
 const ICON_BY_ID: Record<
   OrganizationCategoryId,
   OrganizationCategoryOption['logoIcon']
@@ -67,9 +65,15 @@ export function isOrganizationCategory(
 export function getOrganizationCategoryLabel(
   category: string | null | undefined,
 ): string {
-  if (!category) return 'Other';
-  if (isOrganizationCategory(category)) return LABEL_BY_ID[category];
-  return category.charAt(0).toUpperCase() + category.slice(1).replace(/_/g, ' ');
+  return t(organizationCategoryLabelKey(category));
+}
+
+export function organizationCategoryLabelKey(
+  category: string | 'all' | null | undefined,
+): string {
+  if (!category || category === 'all') return 'categories.all';
+  if (isOrganizationCategory(category)) return `categories.${category}`;
+  return 'categories.other';
 }
 
 export function getOrganizationCategoryIcon(

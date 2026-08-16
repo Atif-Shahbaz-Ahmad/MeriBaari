@@ -12,12 +12,12 @@ import { Radius, Shadows, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
 import { dataAccess } from '@/data';
-import type { UserRole } from '@/types';
+import type { SelectableUserRole } from '@/features/auth/roles';
 
 const ROLE_CARD_COPY = dataAccess.ROLE_CARD_COPY;
 
 interface RoleSelectCardProps {
-  role: UserRole;
+  role: SelectableUserRole;
   selected: boolean;
   onPress: () => void;
   index?: number;
@@ -63,7 +63,7 @@ export function RoleSelectCard({ role, selected, onPress, index = 0 }: RoleSelec
           <View
             style={[
               styles.icon,
-              { backgroundColor: selected ? Colors.primary : Colors.primary50 },
+              { backgroundColor: selected ? Colors.primary : theme.tints.primary.bg },
             ]}
           >
             <Icon

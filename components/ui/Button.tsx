@@ -48,7 +48,7 @@ export function Button({
     transform: [{ scale: scale.value }],
   }));
 
-  const palette = getVariantStyles(variant, theme.card === Colors.card);
+  const palette = getVariantStyles(variant, theme);
 
   return (
     <AnimatedPressable
@@ -82,7 +82,9 @@ export function Button({
       ) : (
         <>
           {leftIcon}
-          <Text style={[styles.label, { color: palette.text }]}>{title}</Text>
+          <Text style={[styles.label, { color: palette.text }]} numberOfLines={2}>
+            {title}
+          </Text>
           {rightIcon}
         </>
       )}
@@ -90,25 +92,25 @@ export function Button({
   );
 }
 
-function getVariantStyles(variant: ButtonVariant, isLight: boolean) {
+function getVariantStyles(variant: ButtonVariant, theme: ReturnType<typeof useTheme>) {
   switch (variant) {
     case 'secondary':
       return {
-        backgroundColor: isLight ? Colors.primary50 : Colors.darkBorder,
+        backgroundColor: theme.tints.primary.bg,
         borderColor: 'transparent',
-        text: Colors.primary,
+        text: theme.tints.primary.fg,
       };
     case 'outline':
       return {
         backgroundColor: 'transparent',
-        borderColor: isLight ? Colors.border : Colors.darkBorder,
-        text: isLight ? Colors.text : Colors.textInverse,
+        borderColor: theme.border,
+        text: theme.text,
       };
     case 'ghost':
       return {
         backgroundColor: 'transparent',
         borderColor: 'transparent',
-        text: Colors.primary,
+        text: theme.primary,
       };
     case 'danger':
       return {
@@ -149,8 +151,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
   },
   label: {
     ...Typography.button,
+    flexShrink: 1,
+    textAlign: 'center',
   },
 });

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
@@ -17,13 +16,6 @@ interface BusinessStatCardProps {
   style?: ViewStyle;
 }
 
-const ACCENT = {
-  blue: { bg: Colors.primary50 },
-  green: { bg: Colors.secondary50 },
-  orange: { bg: Colors.accent50 },
-  red: { bg: Colors.error50 },
-} as const;
-
 export function BusinessStatCard({
   label,
   value,
@@ -35,7 +27,12 @@ export function BusinessStatCard({
 }: BusinessStatCardProps) {
   const theme = useTheme();
   const [display, setDisplay] = useState(0);
-  const palette = ACCENT[accent];
+  const palette = {
+    blue: theme.tints.primary,
+    green: theme.tints.secondary,
+    orange: theme.tints.accent,
+    red: theme.tints.error,
+  }[accent];
 
   useEffect(() => {
     const start = Date.now();

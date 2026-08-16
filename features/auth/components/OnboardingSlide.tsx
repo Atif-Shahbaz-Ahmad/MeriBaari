@@ -40,8 +40,8 @@ export function OnboardingIllustration({ icon }: OnboardingIllustrationProps) {
 
   return (
     <View style={[styles.wrap, { backgroundColor: theme.card, borderColor: theme.border }]}>
-      <View style={styles.glow} />
-      <View style={styles.iconCircle}>
+      <View style={[styles.glow, { backgroundColor: theme.tints.primary.bg }]} />
+      <View style={[styles.iconCircle, { backgroundColor: theme.tints.primary.bgStrong }]}>
         <Icon size={56} color={Colors.primary} strokeWidth={1.75} />
       </View>
       <Text style={[styles.caption, { color: theme.textMuted }]}>Illustration</Text>
@@ -63,13 +63,11 @@ const styles = StyleSheet.create({
     width: 180,
     height: 180,
     borderRadius: 90,
-    backgroundColor: Colors.primary50,
   },
   iconCircle: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: Colors.primary100,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.sm,

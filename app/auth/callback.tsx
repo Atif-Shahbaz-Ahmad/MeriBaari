@@ -1,9 +1,11 @@
 import * as Linking from 'expo-linking';
 import { Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { Colors } from '@/constants/colors';
+import { Spacing } from '@/constants/spacing';
+import { Typography } from '@/constants/typography';
 import { AuthHref, getHomeHref } from '@/features/auth/navigation';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuthStore } from '@/store/auth-store';
@@ -18,6 +20,7 @@ export default function AuthCallbackScreen() {
   const handleAuthUrl = useAuthStore((s) => s.handleAuthUrl);
   const session = useAuthStore((s) => s.session);
   const role = useAuthStore((s) => s.role);
+  const passwordRecoveryPending = useAuthStore((s) => s.passwordRecoveryPending);
   const [attempted, setAttempted] = useState(false);
   const [settled, setSettled] = useState(false);
 
@@ -28,6 +31,10 @@ export default function AuthCallbackScreen() {
       .catch(() => undefined)
       .finally(() => setSettled(true));
   }, [url, attempted, handleAuthUrl]);
+
+  if (session && passwordRecoveryPending) {
+    return <Redirect href={AuthHref.resetPassword} />;
+  }
 
   if (session) {
     return <Redirect href={getHomeHref(role)} />;
@@ -40,6 +47,9 @@ export default function AuthCallbackScreen() {
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
       <ActivityIndicator size="large" color={Colors.primary} />
+      <Text style={[styles.label, { color: theme.textSecondary }]}>
+        Completing sign-in…
+      </Text>
     </View>
   );
 }
@@ -49,5 +59,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+  },
+  label: {
+    ...Typography.body,
+    textAlign: 'center',
   },
 });

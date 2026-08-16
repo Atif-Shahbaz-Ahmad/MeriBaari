@@ -15,6 +15,10 @@ export type NotificationType =
   | 'QUEUE_CLOSED'
   | 'QUEUE_TURN_APPROACHING'
   | 'QUEUE_CANCELLED'
+  | 'CUSTOMER_JOINED'
+  | 'SUBSCRIPTION_PAYMENT_SUBMITTED'
+  | 'SUBSCRIPTION_APPROVED'
+  | 'SUBSCRIPTION_REJECTED'
   | 'SYSTEM';
 
 export const NOTIFICATION_TYPES: readonly NotificationType[] = [
@@ -28,6 +32,10 @@ export const NOTIFICATION_TYPES: readonly NotificationType[] = [
   'QUEUE_CLOSED',
   'QUEUE_TURN_APPROACHING',
   'QUEUE_CANCELLED',
+  'CUSTOMER_JOINED',
+  'SUBSCRIPTION_PAYMENT_SUBMITTED',
+  'SUBSCRIPTION_APPROVED',
+  'SUBSCRIPTION_REJECTED',
   'SYSTEM',
 ] as const;
 
@@ -88,6 +96,9 @@ export function categoryForNotificationType(
     case 'QUEUE_TURN_APPROACHING':
       return 'reminders';
     case 'SYSTEM':
+    case 'SUBSCRIPTION_PAYMENT_SUBMITTED':
+    case 'SUBSCRIPTION_APPROVED':
+    case 'SUBSCRIPTION_REJECTED':
       return 'system';
     case 'QUEUE_JOINED':
     case 'TICKET_CALLED':
@@ -98,6 +109,7 @@ export function categoryForNotificationType(
     case 'QUEUE_RESUMED':
     case 'QUEUE_CLOSED':
     case 'QUEUE_CANCELLED':
+    case 'CUSTOMER_JOINED':
       return 'queue';
     default:
       return 'system';

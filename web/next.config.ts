@@ -1,0 +1,127 @@
+import type { NextConfig } from 'next';
+import { existsSync, readFileSync } from 'fs';
+import path from 'path';
+
+function loadParentEnv() {
+  const envPath = path.resolve(__dirname, '../.env');
+  if (!existsSync(envPath)) return;
+  for (const raw of readFileSync(envPath, 'utf8').split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) continue;
+    const eq = line.indexOf('=');
+    if (eq < 1) continue;
+    const key = line.slice(0, eq).trim();
+    let value = line.slice(eq + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (!process.env[key]) process.env[key] = value;
+  }
+}
+
+loadParentEnv();
+
+const repoRoot = path.resolve(__dirname, '..');
+const webSrc = path.resolve(__dirname, 'src');
+
+const aliases: Record<string, string> = {
+  '@/lib/supabase': path.join(webSrc, 'lib/supabase.ts'),
+  '@/lib/secure-store': path.join(webSrc, 'lib/storage.ts'),
+  '@/lib/auth-redirect': path.join(webSrc, 'lib/auth-redirect.ts'),
+  '@/lib/avatar-image': path.join(webSrc, 'lib/avatar-image.ts'),
+  '@/lib/query-client': path.join(webSrc, 'lib/query-client.ts'),
+  '@/lib/i18n/locale-context': path.join(webSrc, 'lib/locale-context.tsx'),
+  '@/lib/i18n/rtl': path.join(webSrc, 'lib/rtl.ts'),
+  '@/lib/geo': path.join(webSrc, 'lib/geo.ts'),
+  '@/data': path.join(webSrc, 'di/index.ts'),
+  '@/data/di': path.join(webSrc, 'di/index.ts'),
+  '@/data/di/container': path.join(webSrc, 'di/container.ts'),
+  '@/data/di/index': path.join(webSrc, 'di/index.ts'),
+  '@/hooks/use-theme': path.join(webSrc, 'hooks/use-theme.ts'),
+  '@/hooks/use-auth': path.join(webSrc, 'hooks/use-auth.ts'),
+  '@/features/search/hooks/use-user-location': path.join(
+    webSrc,
+    'hooks/use-user-location.ts',
+  ),
+  '@/features/notifications/hooks/use-push-notifications': path.join(
+    webSrc,
+    'hooks/use-push-notifications.ts',
+  ),
+  'react-native': path.join(webSrc, 'shims/react-native.ts'),
+  'expo-web-browser': path.join(webSrc, 'shims/expo-web-browser.ts'),
+  'expo-secure-store': path.join(webSrc, 'shims/expo-secure-store.ts'),
+  'expo-linking': path.join(webSrc, 'shims/expo-linking.ts'),
+  'expo-auth-session': path.join(webSrc, 'shims/expo-auth-session.ts'),
+  'expo-image-manipulator': path.join(webSrc, 'shims/expo-image-manipulator.ts'),
+  'expo-audio': path.join(webSrc, 'shims/expo-audio.ts'),
+  'expo-notifications': path.join(webSrc, 'shims/expo-notifications.ts'),
+  'expo-location': path.join(webSrc, 'shims/expo-location.ts'),
+  'expo-constants': path.join(webSrc, 'shims/expo-constants.ts'),
+  'expo-device': path.join(webSrc, 'shims/expo-device.ts'),
+  'expo-file-system': path.join(webSrc, 'shims/expo-file-system.ts'),
+  'expo-haptics': path.join(webSrc, 'shims/expo-haptics.ts'),
+  'expo-router': path.join(webSrc, 'shims/expo-router.ts'),
+  '@react-navigation/native': path.join(webSrc, 'shims/react-navigation.ts'),
+  '@supabase/supabase-js': path.join(
+    repoRoot,
+    'node_modules/@supabase/supabase-js',
+  ),
+  // Shared feature hooks live in the repo root and would otherwise resolve
+  // @tanstack/react-query from the parent node_modules — a second copy whose
+  // QueryClient context is invisible to the web app's provider.
+  '@tanstack/react-query': path.join(
+    __dirname,
+    'node_modules/@tanstack/react-query',
+  ),
+};
+
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  process.env.EXPO_PUBLIC_SUPABASE_URL ||
+  '';
+const supabaseAnonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+  '';
+
+const nextConfig: NextConfig = {
+  reactStrictMode: true,
+  poweredByHeader: false,
+  outputFileTracingRoot: repoRoot,
+  experimental: {
+    externalDir: true,
+  },
+  turbopack: {
+    resolveAlias: {
+      ...aliases,
+      '@': repoRoot,
+      '@web': webSrc,
+    },
+  },
+  env: {
+    NEXT_PUBLIC_SUPABASE_URL: supabaseUrl,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: supabaseAnonKey,
+    EXPO_PUBLIC_SUPABASE_URL: supabaseUrl,
+    EXPO_PUBLIC_SUPABASE_ANON_KEY: supabaseAnonKey,
+  },
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      ...aliases,
+      '@': repoRoot,
+      '@web': webSrc,
+    };
+    config.resolve.modules = [
+      path.join(__dirname, 'node_modules'),
+      ...(Array.isArray(config.resolve.modules)
+        ? config.resolve.modules
+        : ['node_modules']),
+    ];
+    return config;
+  },
+};
+
+export default nextConfig;

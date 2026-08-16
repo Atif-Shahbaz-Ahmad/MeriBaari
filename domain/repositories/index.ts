@@ -38,6 +38,7 @@ export type {
 export type {
   TicketRepository,
   TicketUpdateInput,
+  TicketHistoryListParams,
   JoinQueueInput,
 } from './ticket.repository';
 export type {
@@ -45,6 +46,11 @@ export type {
   NotificationCreateInput,
   NotificationListParams,
 } from './notification.repository';
+export type { SubscriptionRepository } from './subscription.repository';
+export type { ChatbotRepository } from './chatbot.repository';
+export type { VoiceRepository } from './voice.repository';
+export type { FavoritesRepository } from './favorites.repository';
+export type { ReviewsRepository } from './reviews.repository';
 export type {
   PushTokenRepository,
   PushTokenRecord,

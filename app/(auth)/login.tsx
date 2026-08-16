@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Logo } from '@/components/layout/Logo';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { PasswordInput } from '@/components/ui/PasswordInput';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -26,6 +27,7 @@ import {
 } from '@/features/auth/schemas';
 import { AuthHref, getHomeHref } from '@/features/auth/navigation';
 import { useAuth } from '@/hooks/use-auth';
+import { useTranslation } from '@/hooks/use-translation';
 import { useColorScheme, useTheme } from '@/hooks/use-theme';
 import { useAuthStore } from '@/store/auth-store';
 
@@ -33,6 +35,7 @@ export default function LoginScreen() {
   const theme = useTheme();
   const scheme = useColorScheme();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { login, isLoading } = useAuth();
   const [error, setError] = useState<string | null>(null);
 
@@ -54,7 +57,7 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: theme.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
         contentContainerStyle={[
@@ -65,13 +68,14 @@ export default function LoginScreen() {
           },
         ]}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
         <Logo variant={scheme === 'dark' ? 'dark' : 'light'} size="md" />
 
         <View style={styles.hero}>
-          <Text style={[styles.title, { color: theme.text }]}>Login</Text>
+          <Text style={[styles.title, { color: theme.text }]}>{t('auth.login.title')}</Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-            Sign in with your email and password.
+            {t('auth.login.subtitle')}
           </Text>
         </View>
 
@@ -81,8 +85,8 @@ export default function LoginScreen() {
             name="email"
             render={({ field: { onChange, onBlur, value }, fieldState }) => (
               <Input
-                label="Email"
-                placeholder="you@example.com"
+                label={t('auth.login.email')}
+                placeholder={t('auth.login.emailPlaceholder')}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
@@ -101,14 +105,15 @@ export default function LoginScreen() {
             control={form.control}
             name="password"
             render={({ field: { onChange, onBlur, value }, fieldState }) => (
-              <Input
-                label="Password"
-                placeholder="Your password"
-                secureTextEntry
+              <PasswordInput
+                label={t('auth.login.password')}
+                placeholder={t('auth.login.passwordPlaceholder')}
                 autoComplete="password"
+                textContentType="password"
                 value={value}
                 onBlur={onBlur}
                 onChangeText={onChange}
+                accessibilityLabel={t('auth.login.password')}
                 error={
                   typeof fieldState.error?.message === 'string'
                     ? fieldState.error.message
@@ -123,7 +128,7 @@ export default function LoginScreen() {
             accessibilityRole="link"
             style={styles.forgotRow}
           >
-            <Text style={styles.link}>Forgot Password?</Text>
+            <Text style={styles.link}>{t('auth.login.forgot')}</Text>
           </Pressable>
 
           {error ? (
@@ -133,7 +138,7 @@ export default function LoginScreen() {
           ) : null}
 
           <Button
-            title="Login"
+            title={t('auth.login.cta')}
             loading={isLoading}
             onPress={() => void form.handleSubmit(onSubmit)()}
           />
@@ -141,13 +146,15 @@ export default function LoginScreen() {
 
         <View style={styles.footer}>
           <Text style={[styles.footerText, { color: theme.textMuted }]}>
-            Don&apos;t have an account?{' '}
+            {t('auth.login.noAccount')}{' '}
             <Text style={styles.link} onPress={() => router.push(AuthHref.signup)}>
-              Create Account
+              {t('auth.login.createAccount')}
             </Text>
           </Text>
           <Pressable onPress={() => router.replace(AuthHref.welcome)}>
-            <Text style={[styles.back, { color: theme.textSecondary }]}>Back to Welcome</Text>
+            <Text style={[styles.back, { color: theme.textSecondary }]}>
+              {t('auth.login.backWelcome')}
+            </Text>
           </Pressable>
         </View>
       </ScrollView>

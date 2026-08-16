@@ -12,9 +12,8 @@ import { Radius, Shadows, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
 import { formatWaitTime } from '@/utils/formatting';
-import type { AvailabilityStatus } from '@/types';
+import type { AvailabilityStatus, QueueService } from '@/types';
 import type { Service as DomainService } from '@/domain/models';
-import type { QueueService } from '@/types';
 
 type ServiceCardModel = DomainService | QueueService;
 

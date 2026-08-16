@@ -99,14 +99,14 @@ export default function QueueDetailsScreen() {
             <SummaryCard
               title="Total Waiting"
               value={details.totalWaiting}
-              icon={<Users size={16} color={Colors.primary} />}
+              icon={<Users size={16} color={theme.tints.primary.fg} />}
               accent="blue"
               index={0}
             />
             <SummaryCard
               title="Completed Today"
               value={details.completedToday}
-              icon={<CheckCircle2 size={16} color={Colors.secondary600} />}
+              icon={<CheckCircle2 size={16} color={theme.tints.secondary.fg} />}
               accent="green"
               index={1}
             />
@@ -115,14 +115,14 @@ export default function QueueDetailsScreen() {
             <SummaryCard
               title="Cancelled Today"
               value={details.cancelledToday}
-              icon={<XCircle size={16} color={Colors.error} />}
+              icon={<XCircle size={16} color={theme.tints.error.fg} />}
               accent="red"
               index={2}
             />
             <SummaryCard
               title="Avg. Service"
               value={`${details.averageServiceMinutes} min`}
-              icon={<Clock3 size={16} color="#B45309" />}
+              icon={<Clock3 size={16} color={theme.tints.accent.fg} />}
               accent="orange"
               index={3}
             />
@@ -131,7 +131,7 @@ export default function QueueDetailsScreen() {
             title="Queue Speed"
             value={`${details.queueSpeed}/hr`}
             subtitle="Tickets served per hour"
-            icon={<Gauge size={16} color={Colors.primary} />}
+            icon={<Gauge size={16} color={theme.tints.primary.fg} />}
             accent="blue"
             index={4}
           />

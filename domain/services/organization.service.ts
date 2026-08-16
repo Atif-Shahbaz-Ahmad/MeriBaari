@@ -4,11 +4,15 @@ import type {
   OrganizationSearchParams,
   OrganizationUpdateInput,
 } from '@/domain/repositories';
+import type { FileStorageService } from '@/domain/future';
 import type { OrganizationCategory } from '@/types/organization';
 import { OrganizationError } from '@/domain/errors/organization-error';
 
 export class OrganizationService {
-  constructor(private readonly organizations: OrganizationRepository) {}
+  constructor(
+    private readonly organizations: OrganizationRepository,
+    private readonly files?: FileStorageService,
+  ) {}
 
   getById(id: string) {
     return this.organizations.getOrganizationById(id);
@@ -26,13 +30,21 @@ export class OrganizationService {
     return this.organizations.getOrganizations(params);
   }
 
-  search(query: string, category: OrganizationCategory | 'all' = 'all') {
+  search(
+    query: string,
+    category: OrganizationCategory | 'all' = 'all',
+    options?: { activeOnly?: boolean },
+  ) {
     const params: OrganizationSearchParams = {
       query,
       category,
-      activeOnly: true,
+      activeOnly: options?.activeOnly ?? true,
     };
     return this.organizations.search(params);
+  }
+
+  getStartingPrices(organizationIds: string[]) {
+    return this.organizations.getStartingPrices(organizationIds);
   }
 
   getMyOrganization() {
@@ -115,6 +127,53 @@ export class OrganizationService {
       );
     }
     return this.organizations.deleteOrganization(id);
+  }
+
+  /**
+   * Optimize + upload logo, then persist `organizations.logo_url`.
+   * Owners only — scoped via getMyOrganization + storage RLS.
+   */
+  async uploadLogo(organizationId: string, localUri: string) {
+    if (!this.files) {
+      throw new OrganizationError(
+        'not_configured',
+        'Logo upload is not available yet.',
+      );
+    }
+    const mine = await this.organizations.getMyOrganization();
+    if (!mine || mine.id !== organizationId) {
+      throw new OrganizationError(
+        'permission_denied',
+        'You can only update your own organization logo.',
+      );
+    }
+
+    const publicUrl = await this.files.uploadOrganizationLogo(
+      organizationId,
+      localUri,
+    );
+    return this.organizations.updateOrganization(organizationId, {
+      logoUrl: publicUrl,
+    });
+  }
+
+  /** Remove storage object (if any) and clear `organizations.logo_url`. */
+  async removeLogo(organizationId: string) {
+    const mine = await this.organizations.getMyOrganization();
+    if (!mine || mine.id !== organizationId) {
+      throw new OrganizationError(
+        'permission_denied',
+        'You can only update your own organization logo.',
+      );
+    }
+
+    if (this.files) {
+      await this.files.removeOrganizationLogo(organizationId, mine.logoUrl);
+    }
+
+    return this.organizations.updateOrganization(organizationId, {
+      logoUrl: null,
+    });
   }
 
   /** True when the current user owns the given organization. */

@@ -69,7 +69,7 @@ export interface CatalogRepository {
   getFaq(): Promise<FaqItem[]>;
   getAbout(): Promise<AboutContent>;
   getSettingsGroups(): Promise<SettingsGroupDefinition[]>;
-  getRoleCardCopy(): Promise<Record<UserRole, RoleCardCopy>>;
+  getRoleCardCopy(): Promise<Record<'customer' | 'business', RoleCardCopy>>;
   getRoleDisplayLabel(role: UserRole | null | undefined): Promise<string>;
   getNearbyServiceToOrgMap(): Promise<Record<string, string>>;
   getWalkInDepartments(): Promise<WalkInDepartmentOption[]>;

@@ -42,6 +42,10 @@ firebase-service-account*.json
 # typescript
 *.tsbuildinfo
 
+# Tauri desktop
+desktop/dist/
+desktop/src-tauri/target/
+
 # check exports
 dist-web-check
 dist-android-check
@@ -51,3 +55,8 @@ app-example
 # generated native folders
 /ios
 /android
+
+# standalone APK/IPA downloads
+/builds
+/.eas-work
+/.gradle-home

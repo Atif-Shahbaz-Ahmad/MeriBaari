@@ -2,66 +2,89 @@ import type {
   AuthRepository,
   BusinessSettingsRepository,
   CatalogRepository,
+  ChatbotRepository,
+  VoiceRepository,
   DepartmentRepository,
+  FavoritesRepository,
   NotificationRepository,
   OrganizationRepository,
   ProfileRepository,
   QueueEntryRepository,
   QueueRepository,
+  ReviewsRepository,
   ServiceRepository,
+  SubscriptionRepository,
   TicketRepository,
 } from '@/domain/repositories';
 import {
   AuthService,
   BusinessService,
   CatalogService,
+  ChatbotService,
+  VoiceService,
   DepartmentService,
+  FavoritesService,
   NotificationService,
   OrganizationService,
   ProfileService,
   QueueService,
+  ReviewsService,
   ServiceService,
+  SubscriptionService,
   TicketService,
 } from '@/domain/services';
 import {
-  UnimplementedFileStorageService,
   UnimplementedPushNotificationService,
-  UnimplementedQrValidationService,
   UnimplementedRealtimeService,
   type FileStorageService,
   type PushNotificationService,
-  type QrValidationService,
   type RealtimeService,
 } from '@/domain/future';
+import type { MicrophonePermissionService } from '@/domain/services/microphone-permission.service';
 import type { NotificationPermissionService } from '@/domain/services/notification-permission.service';
 import type { PushTokenRepository } from '@/domain/repositories/push-token.repository';
 import {
   MockAuthRepository,
   MockBusinessSettingsRepository,
   MockCatalogRepository,
+  MockChatbotRepository,
+  MockBusinessChatbotRepository,
+  MockVoiceRepository,
   MockDepartmentRepository,
+  MockFavoritesRepository,
   MockNotificationRepository,
   MockOrganizationRepository,
   MockProfileRepository,
   MockQueueEntryRepository,
   MockQueueRepository,
+  MockReviewsRepository,
   MockServiceRepository,
+  MockSubscriptionRepository,
   MockTicketRepository,
 } from '@/data/mock';
+import { MockFileStorageService } from '@/data/mock/mock-file-storage.service';
 import { MockPushTokenRepository } from '@/data/mock/mock-push-token.repository';
 import {
   SupabaseAuthRepository,
+  SupabaseChatbotRepository,
+  SupabaseBusinessChatbotRepository,
+  SupabaseVoiceRepository,
   SupabaseDepartmentRepository,
+  SupabaseFavoritesRepository,
   SupabaseOrganizationRepository,
   SupabaseProfileRepository,
   SupabaseQueueEntryRepository,
   SupabaseQueueRepository,
   SupabaseRealtimeService,
   SupabaseNotificationRepository,
+  SupabaseReviewsRepository,
   SupabaseServiceRepository,
+  SupabaseSubscriptionRepository,
   SupabaseTicketRepository,
 } from '@/data/supabase';
+import { SupabaseFileStorageService } from '@/data/supabase/supabase-file-storage.service';
 import { SupabasePushTokenRepository } from '@/data/supabase/supabase-push-token.repository';
+import { ExpoMicrophonePermissionService } from '@/data/audio/expo-microphone-permission.service';
 import { ExpoNotificationPermissionService } from '@/data/notifications/expo-notification-permission.service';
 import { ExpoPushNotificationService } from '@/data/notifications/expo-push-notification.service';
 import { isSupabaseConfigured } from '@/lib/supabase';
@@ -70,8 +93,8 @@ import { isSupabaseConfigured } from '@/lib/supabase';
  * Application dependency container.
  *
  * Auth + Profile + Organizations + Departments + Services + Queues/Tickets
- * + Realtime + Notifications use Supabase when configured; remaining domains
- * stay mock until wired.
+ * + Realtime + Notifications + Favorites + Reviews use Supabase when configured;
+ * remaining domains stay mock until wired.
  */
 export interface AppContainer {
   profileRepository: ProfileRepository;
@@ -82,9 +105,15 @@ export interface AppContainer {
   queueEntryRepository: QueueEntryRepository;
   ticketRepository: TicketRepository;
   notificationRepository: NotificationRepository;
+  favoritesRepository: FavoritesRepository;
+  reviewsRepository: ReviewsRepository;
+  subscriptionRepository: SubscriptionRepository;
   businessSettingsRepository: BusinessSettingsRepository;
   authRepository: AuthRepository;
   catalogRepository: CatalogRepository;
+  chatbotRepository: ChatbotRepository;
+  businessChatbotRepository: ChatbotRepository;
+  voiceRepository: VoiceRepository;
 
   authService: AuthService;
   profileService: ProfileService;
@@ -94,14 +123,20 @@ export interface AppContainer {
   queueService: QueueService;
   ticketService: TicketService;
   notificationService: NotificationService;
+  favoritesService: FavoritesService;
+  reviewsService: ReviewsService;
+  subscriptionService: SubscriptionService;
   businessService: BusinessService;
   catalogService: CatalogService;
+  chatbotService: ChatbotService;
+  businessChatbotService: ChatbotService;
+  voiceService: VoiceService;
 
   realtimeService: RealtimeService;
   notificationPermissionService: NotificationPermissionService;
+  microphonePermissionService: MicrophonePermissionService;
   pushTokenRepository: PushTokenRepository;
   pushNotificationService: PushNotificationService;
-  qrValidationService: QrValidationService;
   fileStorageService: FileStorageService;
 
   mockTicketRepository: MockTicketRepository;
@@ -143,8 +178,30 @@ export function createAppContainer(): AppContainer {
   const notificationRepository: NotificationRepository = useSupabaseAuth
     ? new SupabaseNotificationRepository()
     : new MockNotificationRepository();
+  const favoritesRepository: FavoritesRepository = useSupabaseAuth
+    ? new SupabaseFavoritesRepository()
+    : new MockFavoritesRepository(organizationRepository);
+  const reviewsRepository: ReviewsRepository = useSupabaseAuth
+    ? new SupabaseReviewsRepository()
+    : new MockReviewsRepository(organizationRepository, ticketRepository);
+  const subscriptionRepository: SubscriptionRepository = useSupabaseAuth
+    ? new SupabaseSubscriptionRepository()
+    : new MockSubscriptionRepository(
+        organizationRepository instanceof MockOrganizationRepository
+          ? organizationRepository
+          : undefined,
+      );
   const businessSettingsRepository = new MockBusinessSettingsRepository();
   const catalogRepository = new MockCatalogRepository();
+  const chatbotRepository: ChatbotRepository = useSupabaseAuth
+    ? new SupabaseChatbotRepository()
+    : new MockChatbotRepository();
+  const businessChatbotRepository: ChatbotRepository = useSupabaseAuth
+    ? new SupabaseBusinessChatbotRepository()
+    : new MockBusinessChatbotRepository();
+  const voiceRepository: VoiceRepository = useSupabaseAuth
+    ? new SupabaseVoiceRepository()
+    : new MockVoiceRepository();
 
   const mockQueueRepository =
     queueRepository instanceof MockQueueRepository
@@ -167,12 +224,17 @@ export function createAppContainer(): AppContainer {
     ? new SupabasePushTokenRepository()
     : new MockPushTokenRepository();
   const notificationPermissionService = new ExpoNotificationPermissionService();
+  const microphonePermissionService = new ExpoMicrophonePermissionService();
   const pushNotificationService: PushNotificationService = useSupabaseAuth
     ? new ExpoPushNotificationService(
         notificationPermissionService,
         pushTokenRepository,
       )
     : new UnimplementedPushNotificationService();
+
+  const fileStorageService: FileStorageService = useSupabaseAuth
+    ? new SupabaseFileStorageService()
+    : new MockFileStorageService();
 
   return {
     profileRepository,
@@ -183,13 +245,22 @@ export function createAppContainer(): AppContainer {
     queueEntryRepository,
     ticketRepository,
     notificationRepository,
+    favoritesRepository,
+    reviewsRepository,
+    subscriptionRepository,
     businessSettingsRepository,
     authRepository,
     catalogRepository,
+    chatbotRepository,
+    businessChatbotRepository,
+    voiceRepository,
 
     authService: new AuthService(authRepository, profileRepository),
-    profileService: new ProfileService(profileRepository),
-    organizationService: new OrganizationService(organizationRepository),
+    profileService: new ProfileService(profileRepository, fileStorageService),
+    organizationService: new OrganizationService(
+      organizationRepository,
+      fileStorageService,
+    ),
     departmentService: new DepartmentService(
       departmentRepository,
       organizationRepository,
@@ -202,6 +273,13 @@ export function createAppContainer(): AppContainer {
     queueService: new QueueService(queueRepository, queueEntryRepository),
     ticketService: new TicketService(ticketRepository),
     notificationService: new NotificationService(notificationRepository),
+    favoritesService: new FavoritesService(favoritesRepository),
+    reviewsService: new ReviewsService(reviewsRepository),
+    subscriptionService: new SubscriptionService(
+      subscriptionRepository,
+      organizationRepository,
+      fileStorageService,
+    ),
     businessService: new BusinessService(
       businessSettingsRepository,
       queueRepository,
@@ -209,15 +287,18 @@ export function createAppContainer(): AppContainer {
       catalogRepository,
     ),
     catalogService: new CatalogService(catalogRepository, authRepository),
+    chatbotService: new ChatbotService(chatbotRepository),
+    businessChatbotService: new ChatbotService(businessChatbotRepository),
+    voiceService: new VoiceService(voiceRepository),
 
     realtimeService: useSupabaseAuth
       ? new SupabaseRealtimeService()
       : new UnimplementedRealtimeService(),
     notificationPermissionService,
+    microphonePermissionService,
     pushTokenRepository,
     pushNotificationService,
-    qrValidationService: new UnimplementedQrValidationService(),
-    fileStorageService: new UnimplementedFileStorageService(),
+    fileStorageService,
 
     mockTicketRepository,
     mockNotificationRepository,
