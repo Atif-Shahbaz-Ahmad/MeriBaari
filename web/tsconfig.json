@@ -16,7 +16,10 @@
     "plugins": [{ "name": "next" }],
     "baseUrl": ".",
     "paths": {
-      "@supabase/supabase-js": ["../node_modules/@supabase/supabase-js"],
+      "@supabase/supabase-js": [
+        "./node_modules/@supabase/supabase-js",
+        "../node_modules/@supabase/supabase-js"
+      ],
       "@tanstack/react-query": ["./node_modules/@tanstack/react-query"],
       "@/lib/supabase": ["./src/lib/supabase.ts"],
       "@/lib/secure-store": ["./src/lib/storage.ts"],

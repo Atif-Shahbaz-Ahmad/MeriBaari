@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3000",
-    "build": "next build",
+    "build": "node ./scripts/link-parent-node-modules.cjs && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
