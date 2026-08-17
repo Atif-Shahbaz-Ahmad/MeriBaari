@@ -16,10 +16,9 @@
     "plugins": [{ "name": "next" }],
     "baseUrl": ".",
     "paths": {
-      "react": ["./node_modules/react"],
-      "react/*": ["./node_modules/react/*"],
-      "react-dom": ["./node_modules/react-dom"],
-      "react-dom/*": ["./node_modules/react-dom/*"],
+      // Never map `react` / `react-dom` here. Next.js JsConfigPathsPlugin
+      // would rewrite those imports to node_modules and bypass the App
+      // Router's layer-specific RSC vs SSR React.
       "@supabase/supabase-js": ["./node_modules/@supabase/supabase-js"],
       "@supabase/ssr": ["./node_modules/@supabase/ssr"],
       "@tanstack/react-query": ["./node_modules/@tanstack/react-query"],

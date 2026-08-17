@@ -76,13 +76,16 @@ const aliases: Record<string, string> = {
   'expo-clipboard': path.join(webSrc, 'shims/expo-clipboard.ts'),
   '@react-navigation/native': path.join(webSrc, 'shims/react-navigation.ts'),
   'lucide-react-native': path.join(webSrc, 'shims/lucide-react-native.ts'),
-  react: resolvePkg('react'),
-  'react-dom': resolvePkg('react-dom'),
   '@supabase/supabase-js': resolvePkg('@supabase/supabase-js'),
   // Shared feature hooks live in the repo root and would otherwise resolve
-  // @tanstack/react-query from the parent node_modules — a second copy whose
-  // QueryClient context is invisible to the web app's provider.
+  // @tanstack/react-query / zustand from the parent node_modules — a second
+  // copy whose context is invisible to the web app's providers.
   '@tanstack/react-query': resolvePkg('@tanstack/react-query'),
+  zustand: resolvePkg('zustand'),
+  // Do NOT alias `react` or `react-dom` here (or in tsconfig paths).
+  // Next.js 15 uses layer-specific vendored React (RSC vs SSR vs browser).
+  // Pointing those names at node_modules/react bypasses the RSC/SSR split
+  // and makes client hooks see a null dispatcher during prerender.
 };
 
 const supabaseUrl =
