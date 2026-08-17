@@ -26,6 +26,15 @@ loadParentEnv();
 
 const repoRoot = path.resolve(__dirname, '..');
 const webSrc = path.resolve(__dirname, 'src');
+const webModules = path.join(__dirname, 'node_modules');
+
+function resolvePkg(pkg: string) {
+  const fromWeb = path.join(webModules, pkg);
+  const fromRoot = path.join(repoRoot, 'node_modules', pkg);
+  if (existsSync(fromWeb)) return fromWeb;
+  if (existsSync(fromRoot)) return fromRoot;
+  return fromWeb;
+}
 
 const aliases: Record<string, string> = {
   '@/lib/supabase': path.join(webSrc, 'lib/supabase.ts'),
@@ -65,17 +74,11 @@ const aliases: Record<string, string> = {
   'expo-haptics': path.join(webSrc, 'shims/expo-haptics.ts'),
   'expo-router': path.join(webSrc, 'shims/expo-router.ts'),
   '@react-navigation/native': path.join(webSrc, 'shims/react-navigation.ts'),
-  '@supabase/supabase-js': path.join(
-    repoRoot,
-    'node_modules/@supabase/supabase-js',
-  ),
+  '@supabase/supabase-js': resolvePkg('@supabase/supabase-js'),
   // Shared feature hooks live in the repo root and would otherwise resolve
   // @tanstack/react-query from the parent node_modules — a second copy whose
   // QueryClient context is invisible to the web app's provider.
-  '@tanstack/react-query': path.join(
-    __dirname,
-    'node_modules/@tanstack/react-query',
-  ),
+  '@tanstack/react-query': resolvePkg('@tanstack/react-query'),
 };
 
 const supabaseUrl =
@@ -115,7 +118,7 @@ const nextConfig: NextConfig = {
       '@web': webSrc,
     };
     config.resolve.modules = [
-      path.join(__dirname, 'node_modules'),
+      webModules,
       ...(Array.isArray(config.resolve.modules)
         ? config.resolve.modules
         : ['node_modules']),
