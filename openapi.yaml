@@ -1,0 +1,1859 @@
+openapi: 3.1.0
+info:
+  title: MeriBaari HTTP APIs
+  version: 1.0.0
+  summary: Existing Supabase Edge Function and health HTTP endpoints used by MeriBaari clients.
+  description: |
+    This specification documents **only the HTTP APIs that already exist** in the MeriBaari
+    backend. There is no Express or NestJS server. Mobile, web, and desktop talk to the
+    hosted Supabase project (`EXPO_PUBLIC_SUPABASE_URL`).
+
+    ## What is documented here
+
+    | Path | Audience | Auth |
+    | --- | --- | --- |
+    | `POST /functions/v1/customer-chatbot` | Customer (mobile + web) | **Supabase user JWT** + public anon `apikey`. `profiles.role` must be `customer`. |
+    | `POST /functions/v1/business-chatbot` | Business owner (mobile + web) | **Supabase user JWT** + public anon `apikey`. `profiles.role` must be `business`. |
+    | `POST /functions/v1/voice-transcribe` | Customer or business (mobile + web) | **Supabase user JWT** + public anon `apikey`. Role must be `customer` or `business`. |
+    | `POST /functions/v1/voice-speak` | Customer or business (mobile + web) | **Supabase user JWT** + public anon `apikey`. Role must be `customer` or `business`. |
+    | `POST /functions/v1/send-push-notification` | Database trigger (`pg_net`), not clients | **Service-role bearer** (or matching `apikey`). Gateway JWT verify is off; the function still rejects user JWTs. |
+    | `GET /auth/v1/health` | All clients (reachability probe) | Public with the **anon key** (not a user session). |
+
+    Gateway JWT verification (`verify_jwt`) is **on** for the four client functions and **off**
+    for `send-push-notification`. Every client function also re-validates `Authorization: Bearer`
+    with `supabase.auth.getUser()` and then checks `profiles.role`.
+
+    ## What is not a custom HTTP API
+
+    Queue join/cancel, owner queue mutations, favorites, tickets, organizations, reviews,
+    subscriptions, push-token registration, and similar flows are **Supabase PostgREST table
+    queries and RPCs** (`/rest/v1/...`, `/rest/v1/rpc/...`), plus GoTrue Auth and Storage.
+    Those are listed in `docs/api/README.md` and are **not invented as extra paths** here.
+
+    ## Secrets
+
+    Never send or document `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `DEEPGRAM_API_KEY`,
+    `AZURE_SPEECH_KEY`, or other Edge Function secrets. Clients only use the public anon key
+    and the signed-in user's access token.
+  contact:
+    name: MeriBaari
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+
+externalDocs:
+  description: Backend notes (Edge Functions, RPC names, secrets setup)
+  url: ./supabase/README.md
+
+servers:
+  - url: https://{projectRef}.supabase.co
+    description: Hosted Supabase project (production / preview). Replace from EXPO_PUBLIC_SUPABASE_URL.
+    variables:
+      projectRef:
+        default: YOUR_PROJECT
+        description: Project ref subdomain (the host of EXPO_PUBLIC_SUPABASE_URL without https:// and .supabase.co).
+  - url: http://127.0.0.1:54321
+    description: Local Supabase (`npx supabase start`). Do not use in standalone mobile builds.
+
+tags:
+  - name: Customer
+    description: Customer chatbot. Requires a signed-in user JWT whose profile role is `customer`.
+  - name: Business
+    description: Business-owner chatbot. Requires a signed-in user JWT whose profile role is `business`.
+  - name: Voice
+    description: Speech-to-text and text-to-speech. Requires a signed-in customer or business JWT. Does not call Gemini and does not mutate queues.
+  - name: Internal
+    description: Server-to-server only. Not called by mobile, web, or desktop clients.
+  - name: Health
+    description: Public reachability checks used by clients. Not a user-data API.
+
+security:
+  - supabaseUserJwt: []
+    supabaseAnonKey: []
+
+paths:
+  /functions/v1/customer-chatbot:
+    post:
+      operationId: customerChatbot
+      tags: [Customer]
+      summary: Customer AI assistant
+      description: |
+        Authenticated customer assistant. Gemini + scoped data tools run with the **caller's JWT**
+        so RLS applies. The function never uses the service role for customer data.
+
+        Invoke from clients with `supabase.functions.invoke('customer-chatbot')`.
+
+        **Authorization**
+        - Gateway: `verify_jwt = true` (invalid/missing user JWT is rejected before Deno).
+        - Function: `Authorization` must start with `Bearer `; `getUser()` must succeed.
+        - Role: `profiles.role` must equal `customer`. Other roles receive HTTP 403.
+
+        **Behavior**
+        - Last user message max 500 characters; conversation capped at 12 turns.
+        - Reply style (`english` / `urdu_script` / `roman_urdu`) is detected from the latest
+          user text, not from `language`.
+        - Queue join/cancel run only when the client sends a valid `confirmedAction`.
+        - Optional `clientRequestId` (8–80 chars `[A-Za-z0-9._-]`) dedupes Gemini calls for 30s.
+        - Wall-clock budget is 50s; clients typically abort around 55s.
+
+        **Not public.** A user session JWT is required. The anon key alone is not sufficient.
+      x-public: false
+      x-required-jwt: supabase-user
+      x-required-role: customer
+      security:
+        - supabaseUserJwt: []
+          supabaseAnonKey: []
+      parameters:
+        - $ref: '#/components/parameters/ApikeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerChatbotRequest'
+            examples:
+              sendMessage:
+                summary: Successful chat turn
+                value:
+                  messages:
+                    - role: user
+                      content: Find a nearby barber
+                  language: en
+                  location:
+                    latitude: 24.8607
+                    longitude: 67.0011
+                  clientRequestId: msg_7f3c91ab
+              confirmJoin:
+                summary: Confirm join-queue action
+                value:
+                  messages:
+                    - role: user
+                      content: Join the haircut queue
+                    - role: assistant
+                      content: Confirm to join Fade Studio haircut?
+                  language: en
+                  confirmedAction:
+                    name: joinQueue
+                    organizationId: 11111111-1111-4111-8111-111111111111
+                    serviceId: 22222222-2222-4222-8222-222222222222
+              confirmCancel:
+                summary: Confirm cancel-ticket action
+                value:
+                  confirmedAction:
+                    name: cancelTicket
+                    ticketId: 33333333-3333-4333-8333-333333333333
+              invalidEmpty:
+                summary: Invalid empty body (fails)
+                value: {}
+      responses:
+        '200':
+          description: Assistant reply (and optional UI cards / pending action / action result).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerChatbotSuccess'
+              examples:
+                nearbyBusinesses:
+                  summary: Nearby businesses with cards
+                  value:
+                    message: I found Fade Studio about 1.2 km away. Haircut is PKR 800.
+                    cards:
+                      - id: 11111111-1111-4111-8111-111111111111
+                        name: Fade Studio
+                        category: barber
+                        distanceKm: 1.2
+                        serviceId: 22222222-2222-4222-8222-222222222222
+                        serviceName: Haircut
+                        price: 800
+                        address: Shahrah-e-Faisal
+                        city: Karachi
+                        isOpen: true
+                        workingHours: 10:00-22:00
+                        averageWaitMinutes: 25
+                        rating: 4.6
+                        reviewCount: 128
+                    ticket: null
+                    favorites: []
+                    history: []
+                    locationRequired: false
+                    pendingAction: null
+                pendingJoin:
+                  summary: Confirmation required before joining
+                  value:
+                    message: Confirm to join Fade Studio haircut? About 3 people ahead.
+                    pendingAction:
+                      type: join_queue
+                      organizationId: 11111111-1111-4111-8111-111111111111
+                      organizationName: Fade Studio
+                      serviceId: 22222222-2222-4222-8222-222222222222
+                      serviceName: Haircut
+                      ticketId: null
+                      ticketNumber: null
+                      waitingCount: 3
+                      estimatedWaitMinutes: 25
+                      queueStatus: open
+                      labels:
+                        confirm: Confirm & Join Queue
+                        dismiss: Cancel
+                    locationRequired: false
+                joinSucceeded:
+                  summary: Confirmed join created a ticket
+                  value:
+                    message: You are in the queue. Your ticket is A-014.
+                    ticket:
+                      id: 33333333-3333-4333-8333-333333333333
+                      ticketNumber: A-014
+                      organizationName: Fade Studio
+                      organizationId: 11111111-1111-4111-8111-111111111111
+                      serviceName: Haircut
+                      departmentName: Cutting
+                      status: waiting
+                      position: 4
+                      peopleAhead: 3
+                      estimatedWaitMinutes: 25
+                      currentServing: A-011
+                      queueStatus: open
+                    pendingAction: null
+                    actionResult:
+                      ok: true
+                    locationRequired: false
+        '400':
+          $ref: '#/components/responses/ChatInvalidData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Authenticated but not a customer account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatError'
+              example:
+                error: The customer assistant is only available for customer accounts.
+                code: forbidden
+                retryable: false
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '408':
+          $ref: '#/components/responses/ChatTimeout'
+        '429':
+          $ref: '#/components/responses/ChatRateLimited'
+        '500':
+          $ref: '#/components/responses/ChatUnavailableOrUnknown'
+        '503':
+          $ref: '#/components/responses/ChatUnavailable'
+
+  /functions/v1/business-chatbot:
+    post:
+      operationId: businessChatbot
+      tags: [Business]
+      summary: Business-owner AI assistant
+      description: |
+        Authenticated business-owner assistant. Gemini + org-scoped tools run with the
+        **owner JWT**. Tools and RPCs are limited to `organizations.owner_id = auth.uid()`.
+
+        Invoke from clients with `supabase.functions.invoke('business-chatbot')`.
+
+        **Authorization**
+        - Gateway: `verify_jwt = true`.
+        - Function: valid user Bearer JWT required.
+        - Role: `profiles.role` must equal `business`. Customers and admins receive HTTP 403.
+        - Client-supplied roles are ignored.
+
+        **Behavior**
+        - Same message limits as the customer assistant (500 chars, 12 turns, 50s budget).
+        - Skip-customer and close-queue run only after a valid `confirmedAction`.
+        - Call-next, pause, resume, and serve can run immediately via existing RPCs from tools.
+        - `location` is not part of this request body.
+
+        **Not public.** A user session JWT is required.
+      x-public: false
+      x-required-jwt: supabase-user
+      x-required-role: business
+      security:
+        - supabaseUserJwt: []
+          supabaseAnonKey: []
+      parameters:
+        - $ref: '#/components/parameters/ApikeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusinessChatbotRequest'
+            examples:
+              sendMessage:
+                summary: Ask for queue status
+                value:
+                  messages:
+                    - role: user
+                      content: Who is waiting right now?
+                  language: en
+                  clientRequestId: biz_8a21cd90
+              confirmSkip:
+                summary: Confirm skip-customer
+                value:
+                  confirmedAction:
+                    name: skipCustomer
+                    entryId: 44444444-4444-4444-8444-444444444444
+              confirmClose:
+                summary: Confirm close-queue
+                value:
+                  confirmedAction:
+                    name: closeQueue
+                    queueId: 55555555-5555-4555-8555-555555555555
+      responses:
+        '200':
+          description: Owner assistant reply with optional queue/service/stats cards.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessChatbotSuccess'
+              examples:
+                queueSnapshot:
+                  summary: Queue status and waiting list
+                  value:
+                    message: Haircut queue is open. 3 waiting. Currently serving A-011.
+                    queueStatus:
+                      - queueId: 55555555-5555-4555-8555-555555555555
+                        queueName: Haircut
+                        departmentName: Cutting
+                        serviceName: Haircut
+                        status: open
+                        waitingCount: 3
+                        currentlyServing: A-011
+                        nextCustomer: A-012
+                        estimatedWaitMinutes: 20
+                    waiting:
+                      - entryId: 44444444-4444-4444-8444-444444444444
+                        ticketNumber: A-012
+                        serviceName: Haircut
+                        status: waiting
+                        position: 1
+                    pendingAction: null
+                    actionResult: null
+                pendingSkip:
+                  summary: Confirmation required before skipping
+                  value:
+                    message: Skip ticket A-012?
+                    pendingAction:
+                      type: skip_customer
+                      organizationId: 66666666-6666-4666-8666-666666666666
+                      organizationName: Fade Studio
+                      serviceId: 22222222-2222-4222-8222-222222222222
+                      serviceName: Haircut
+                      ticketId: 33333333-3333-4333-8333-333333333333
+                      ticketNumber: A-012
+                      entryId: 44444444-4444-4444-8444-444444444444
+                      queueId: 55555555-5555-4555-8555-555555555555
+                      waitingCount: 3
+                      estimatedWaitMinutes: 20
+                      queueStatus: open
+                      labels:
+                        confirm: Yes, skip customer
+                        dismiss: Cancel
+                    actionResult: null
+                skipSucceeded:
+                  summary: Confirmed skip executed
+                  value:
+                    message: Skipped A-012. Next customer has been called.
+                    pendingAction: null
+                    actionResult:
+                      ok: true
+        '400':
+          $ref: '#/components/responses/ChatInvalidData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Authenticated but not a business-owner account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatError'
+              example:
+                error: This assistant is only available for business owner accounts.
+                code: forbidden
+                retryable: false
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '408':
+          $ref: '#/components/responses/ChatTimeout'
+        '429':
+          $ref: '#/components/responses/ChatRateLimited'
+        '500':
+          $ref: '#/components/responses/ChatUnavailableOrUnknown'
+        '503':
+          $ref: '#/components/responses/ChatUnavailable'
+
+  /functions/v1/voice-transcribe:
+    post:
+      operationId: voiceTranscribe
+      tags: [Voice]
+      summary: Speech-to-text for assistant voice input
+      description: |
+        Authenticated STT. The app records locally, then invokes this function.
+        Returns a transcript only. The app then sends that text through
+        `customer-chatbot` or `business-chatbot`.
+
+        Does **not** call Gemini, does **not** execute queue actions, and does **not** store audio.
+
+        **Authorization**
+        - Gateway: `verify_jwt = true`.
+        - Role: `customer` or `business`. Admins receive HTTP 403.
+
+        **Limits**
+        - Duration 400ms–16s (15s target; +1s grace).
+        - Audio payload max 280_000 decoded bytes.
+        - Transcript truncated to 500 characters.
+        - Per-user rate limit 12 requests / 60s (HTTP 429, `Retry-After: 15`).
+
+        Allowed `mimeType` values: `audio/mp4`, `audio/m4a`, `audio/x-m4a`, `audio/aac`,
+        `audio/mpeg`, `audio/wav`, `audio/webm`, `audio/3gpp`. Empty mime defaults to `audio/mp4`.
+
+        **Not public.** A user session JWT is required.
+      x-public: false
+      x-required-jwt: supabase-user
+      x-required-role: customer-or-business
+      security:
+        - supabaseUserJwt: []
+          supabaseAnonKey: []
+      parameters:
+        - $ref: '#/components/parameters/ApikeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoiceTranscribeRequest'
+            examples:
+              shortClip:
+                summary: Valid short recording
+                value:
+                  audioBase64: AAAAGGZ0eXBtcDQyAAAAAGlzb21tcDQyAAAC
+                  mimeType: audio/mp4
+                  durationMs: 1800
+              tooShort:
+                summary: Too short (fails with no_speech)
+                value:
+                  audioBase64: AAAA
+                  mimeType: audio/mp4
+                  durationMs: 100
+      responses:
+        '200':
+          description: Transcript plus detected language and reply style.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceTranscribeSuccess'
+              examples:
+                english:
+                  summary: English speech
+                  value:
+                    transcript: Find a nearby barber
+                    detectedLanguage: en
+                    confidence: 0.94
+                    replyStyle: english
+                romanUrdu:
+                  summary: Roman Urdu speech
+                  value:
+                    transcript: Mere qareeb barber dhoondo
+                    detectedLanguage: ur
+                    confidence: 0.81
+                    replyStyle: roman_urdu
+        '400':
+          description: Invalid audio, too long, or no speech detected.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceError'
+              examples:
+                noSpeech:
+                  summary: No usable speech
+                  value:
+                    error: I did not catch that. Please try speaking again.
+                    code: no_speech
+                    retryable: true
+                tooLong:
+                  summary: Recording longer than 15 seconds
+                  value:
+                    error: Please keep recordings under 15 seconds.
+                    code: invalid_data
+                    retryable: false
+                badMime:
+                  summary: Unsupported mime type
+                  value:
+                    error: I could not use that recording. Please try again.
+                    code: invalid_data
+                    retryable: false
+        '401':
+          $ref: '#/components/responses/VoiceUnauthorized'
+        '403':
+          description: Role is not customer or business.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceError'
+              example:
+                error: Voice is only available for customer and business accounts.
+                code: forbidden
+                retryable: false
+        '405':
+          $ref: '#/components/responses/VoiceMethodNotAllowed'
+        '408':
+          description: Deepgram listen timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceError'
+              example:
+                error: Transcription took too long. Please try again.
+                code: timeout
+                retryable: true
+        '429':
+          description: Per-user STT rate limit (12 / minute).
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceError'
+              example:
+                error: Voice is temporarily busy. Please try again in a moment.
+                code: rate_limited
+                retryable: false
+                retryAfterSeconds: 15
+        '500':
+          description: Missing Supabase env or unexpected error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceError'
+              examples:
+                notConfigured:
+                  value:
+                    error: Voice is not available yet.
+                    code: not_configured
+                    retryable: false
+                unknown:
+                  value:
+                    error: Something went wrong. Please try again.
+                    code: unknown
+                    retryable: true
+        '503':
+          description: Missing Deepgram secret or upstream STT failure.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceError'
+              example:
+                error: Voice is not available yet.
+                code: not_configured
+                retryable: false
+
+  /functions/v1/voice-speak:
+    post:
+      operationId: voiceSpeak
+      tags: [Voice]
+      summary: Text-to-speech for assistant replies
+      description: |
+        Authenticated TTS for the assistant's **main message** (cards stay visual).
+        Does **not** call Gemini, does **not** execute queue actions, and does **not** store audio.
+
+        Routing (after stripping markdown / JSON dumps):
+        - `english` → Deepgram Aura-2 MP3
+        - `urdu_script` → Azure `ur-PK` MP3
+        - `roman_urdu` → transliterate server-side, then Azure `ur-PK`
+
+        TTS failure must never fail the chatbot text reply on the client.
+
+        **Authorization**
+        - Gateway: `verify_jwt = true`.
+        - Role: `customer` or `business`.
+
+        **Limits**
+        - Raw `text` max 2000 characters; speakable text is shortened to 400.
+        - Per-user rate limit 8 requests / 60s (HTTP 429, `Retry-After: 15`).
+        - Empty speakable text or unreliable Roman-Urdu transliteration → HTTP 422 `tts_unavailable`.
+
+        **Not public.** A user session JWT is required.
+      x-public: false
+      x-required-jwt: supabase-user
+      x-required-role: customer-or-business
+      security:
+        - supabaseUserJwt: []
+          supabaseAnonKey: []
+      parameters:
+        - $ref: '#/components/parameters/ApikeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoiceSpeakRequest'
+            examples:
+              english:
+                summary: Speak an English reply
+                value:
+                  text: I found Fade Studio about 1.2 km away.
+                  replyStyle: english
+              urduScript:
+                summary: Speak an Urdu-script reply
+                value:
+                  text: قریب ترین باربر فید اسٹوڈیو ہے۔
+                  replyStyle: urdu_script
+              emptyText:
+                summary: Empty text (fails)
+                value:
+                  text: '   '
+                  replyStyle: english
+      responses:
+        '200':
+          description: MP3 audio as Base64. Mime type is `audio/mpeg`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceSpeakSuccess'
+              example:
+                audioBase64: SUQzAwAAAAAAf1RJVDIAAAAHAAAAU29uZw==
+                mimeType: audio/mpeg
+        '400':
+          description: Missing/oversized text.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceError'
+              example:
+                error: I could not speak that reply right now.
+                code: invalid_data
+                retryable: false
+        '401':
+          $ref: '#/components/responses/VoiceUnauthorized'
+        '403':
+          description: Role is not customer or business.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceError'
+              example:
+                error: Voice is only available for customer and business accounts.
+                code: forbidden
+                retryable: false
+        '405':
+          $ref: '#/components/responses/VoiceMethodNotAllowed'
+        '408':
+          description: Upstream TTS timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceError'
+              example:
+                error: Voice playback took too long. Please try again.
+                code: timeout
+                retryable: true
+        '422':
+          description: Nothing speakable, unreliable transliteration, or empty/oversized audio from the provider.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceError'
+              example:
+                error: Voice playback isn't available right now.
+                code: tts_unavailable
+                retryable: true
+        '429':
+          description: Per-user TTS rate limit (8 / minute).
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceError'
+              example:
+                error: Voice is temporarily busy. Please try again in a moment.
+                code: rate_limited
+                retryable: false
+                retryAfterSeconds: 15
+        '500':
+          description: Missing Supabase env or unexpected error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceError'
+              example:
+                error: Voice playback isn't available right now.
+                code: unknown
+                retryable: true
+        '503':
+          description: Missing Deepgram/Azure secrets or upstream failure.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceError'
+              example:
+                error: Voice playback is not available yet.
+                code: not_configured
+                retryable: false
+
+  /functions/v1/send-push-notification:
+    post:
+      operationId: sendPushNotification
+      tags: [Internal]
+      summary: Deliver an in-app notification over Expo Push
+      description: |
+        Internal Expo Push delivery. Invoked by a Postgres `AFTER INSERT` trigger on
+        `notifications` via `pg_net`. **Mobile, web, and desktop clients must not call this.**
+
+        Gateway `verify_jwt = false` so the API gateway does not require a user JWT.
+        The function still authorizes the caller by comparing `Authorization: Bearer`
+        (or `apikey`) to the **service role key**. User JWTs and the anon key are rejected.
+
+        Push-eligible notification types:
+        `TICKET_CALLED`, `TICKET_SERVING`, `QUEUE_TURN_APPROACHING`, `QUEUE_PAUSED`,
+        `QUEUE_RESUMED`, `QUEUE_CLOSED`, `TICKET_SERVED`, `TICKET_SKIPPED`,
+        `CUSTOMER_JOINED`, `SUBSCRIPTION_PAYMENT_SUBMITTED`, `SUBSCRIPTION_APPROVED`,
+        `SUBSCRIPTION_REJECTED`.
+
+        **Not publicly accessible.** Do not put the service role key in apps, `app.json`,
+        or client env files.
+      x-public: false
+      x-required-jwt: supabase-service-role
+      x-internal: true
+      security:
+        - supabaseServiceRole: []
+      parameters:
+        - $ref: '#/components/parameters/ApikeyHeaderOptional'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendPushRequest'
+            examples:
+              byId:
+                summary: Trigger by notification id
+                value:
+                  notificationId: 77777777-7777-4777-8777-777777777777
+              webhookShape:
+                summary: Trigger payload with nested record.id
+                value:
+                  record:
+                    id: 77777777-7777-4777-8777-777777777777
+              missingId:
+                summary: Invalid (fails)
+                value: {}
+      responses:
+        '200':
+          description: Delivered, or intentionally skipped (ineligible type, push disabled, no tokens).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendPushSuccess'
+              examples:
+                sent:
+                  summary: Expo accepted messages
+                  value:
+                    ok: true
+                    sent: 2
+                    failed: 0
+                    deactivated: 0
+                skippedType:
+                  summary: Notification type is not push-eligible
+                  value:
+                    skipped: true
+                    reason: type_not_push_eligible
+                skippedPrefs:
+                  summary: User disabled push
+                  value:
+                    skipped: true
+                    reason: push_disabled
+                skippedTokens:
+                  summary: No active device tokens
+                  value:
+                    skipped: true
+                    reason: no_active_tokens
+        '400':
+          description: notificationId or record.id is missing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendPushError'
+              example:
+                error: notificationId is required
+        '401':
+          description: Caller is not the service role.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendPushError'
+              example:
+                error: Unauthorized
+        '404':
+          description: Notification row not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendPushNotFound'
+              example:
+                error: Notification not found
+                skipped: true
+        '405':
+          description: Method other than POST.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendPushError'
+              example:
+                error: Method not allowed
+        '500':
+          description: Missing service-role env, load failure, or unexpected error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendPushError'
+              examples:
+                misconfigured:
+                  value:
+                    error: Server misconfigured
+                loadFailed:
+                  value:
+                    error: Failed to load notification
+                internal:
+                  value:
+                    error: Internal error
+        '502':
+          description: Expo Push HTTP request failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendPushError'
+              example:
+                error: Expo push request failed
+
+  /auth/v1/health:
+    get:
+      operationId: authHealth
+      tags: [Health]
+      summary: Auth service reachability
+      description: |
+        GoTrue health probe used by `lib/backend-health.ts` (mobile, web, desktop).
+        Any HTTP status greater than 0 means the API gateway is reachable.
+
+        **Public** with the project **anon key** (`apikey` + `Authorization: Bearer <anon key>`).
+        This is not a user session JWT. No user data is returned.
+
+        Fallback probe in the same client helper is `GET /rest/v1/` (PostgREST root),
+        which is a platform endpoint, not a MeriBaari custom API.
+      x-public: true
+      x-required-jwt: none
+      security:
+        - supabaseAnonKey: []
+      parameters:
+        - $ref: '#/components/parameters/ApikeyHeader'
+      responses:
+        '200':
+          description: Auth service is up. Body shape is owned by GoTrue, not MeriBaari.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                version: gotrue
+        '401':
+          description: Missing or invalid anon key. The client still treats any HTTP status as reachable.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                message: Invalid API key
+        default:
+          description: Any other HTTP status still counts as reachable for the client health check.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+components:
+  securitySchemes:
+    supabaseUserJwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Signed-in **Supabase Auth user access token** (`session.access_token`).
+        Send as `Authorization: Bearer <access_token>`.
+
+        Required on customer-chatbot, business-chatbot, voice-transcribe, and voice-speak.
+        The gateway verifies this JWT when `verify_jwt = true`. The function then calls
+        `auth.getUser()` and checks `profiles.role`.
+
+        Obtain a token via Supabase Auth (email/password, OTP, OAuth) — those are GoTrue
+        platform endpoints, not custom MeriBaari APIs.
+    supabaseAnonKey:
+      type: apiKey
+      in: header
+      name: apikey
+      description: |
+        Public Supabase **anon key** (`EXPO_PUBLIC_SUPABASE_ANON_KEY`). Required by the
+        API gateway on Edge Function and Auth requests. This is not a secret service-role key.
+    supabaseServiceRole:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        **Service-role** bearer token. Used only by `send-push-notification` (Postgres `pg_net`).
+        Never ship this value to mobile, web, desktop, `app.json`, or `EXPO_PUBLIC_*` env.
+        Equivalent `apikey` matching the service role is also accepted by that function.
+
+  parameters:
+    ApikeyHeader:
+      name: apikey
+      in: header
+      required: true
+      description: Public Supabase anon key. Same value as `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
+      schema:
+        type: string
+    ApikeyHeaderOptional:
+      name: apikey
+      in: header
+      required: false
+      description: |
+        For `send-push-notification`, this may be the service-role key instead of a Bearer
+        header. Do not send the service-role key from a client.
+      schema:
+        type: string
+
+  headers:
+    RetryAfter:
+      description: Seconds the client should wait before retrying.
+      schema:
+        type: integer
+        minimum: 1
+
+  responses:
+    Unauthorized:
+      description: Missing/invalid user JWT (gateway or `getUser()`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnauthorizedBody'
+          examples:
+            function:
+              summary: Function 401
+              value:
+                error: Your session has expired. Please log in again.
+                code: unauthorized
+                retryable: false
+            gateway:
+              summary: Gateway 401 (verify_jwt)
+              value:
+                code: 401
+                message: Invalid JWT
+    ChatInvalidData:
+      description: Empty message, oversize last user turn, or malformed `confirmedAction`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ChatError'
+          examples:
+            empty:
+              value:
+                error: Please enter a message.
+                code: invalid_data
+                retryable: false
+            tooLong:
+              value:
+                error: Please keep messages under 500 characters.
+                code: invalid_data
+                retryable: false
+            badConfirm:
+              value:
+                error: Please confirm the action again.
+                code: invalid_data
+                retryable: false
+    MethodNotAllowed:
+      description: HTTP method is not POST.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ChatError'
+          example:
+            error: Method not allowed
+            code: invalid_data
+            retryable: false
+    ChatTimeout:
+      description: Assistant exceeded the 50s budget or upstream timed out.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ChatError'
+          example:
+            error: The assistant took too long to respond. Please try again.
+            code: timeout
+            retryable: true
+    ChatRateLimited:
+      description: Gemini / provider rate limit.
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ChatError'
+          example:
+            error: The assistant is temporarily busy. Please try again in a moment.
+            code: rate_limited
+            retryable: false
+            retryAfterSeconds: 2
+    ChatUnavailable:
+      description: Missing Gemini key, network, or upstream unavailable.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ChatError'
+          examples:
+            notConfigured:
+              value:
+                error: The assistant is not available yet.
+                code: not_configured
+                retryable: false
+            unavailable:
+              value:
+                error: The assistant is temporarily unavailable. Please try again in a moment.
+                code: unavailable
+                retryable: true
+            network:
+              value:
+                error: Something went wrong while connecting. Please try again.
+                code: network
+                retryable: true
+    ChatUnavailableOrUnknown:
+      description: Missing Supabase env, profile lookup failure, or unknown error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ChatError'
+          examples:
+            notConfigured:
+              value:
+                error: The assistant is not available yet.
+                code: not_configured
+                retryable: false
+            unknown:
+              value:
+                error: Something went wrong. Please try again.
+                code: unknown
+                retryable: true
+    VoiceUnauthorized:
+      description: Missing/invalid user JWT.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnauthorizedBody'
+          examples:
+            function:
+              value:
+                error: Your session has expired. Please log in again.
+                code: unauthorized
+                retryable: false
+            gateway:
+              value:
+                code: 401
+                message: Invalid JWT
+    VoiceMethodNotAllowed:
+      description: HTTP method is not POST.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/VoiceError'
+          example:
+            error: Method not allowed
+            code: invalid_data
+            retryable: false
+
+  schemas:
+    Uuid:
+      type: string
+      format: uuid
+      pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+
+    ChatLanguage:
+      type: string
+      enum: [en, ur]
+      description: App UI language sent by the client. Reply style is detected from user text, not this field.
+
+    ChatRole:
+      type: string
+      enum: [user, assistant]
+
+    ChatTurn:
+      type: object
+      additionalProperties: false
+      required: [role, content]
+      properties:
+        role:
+          $ref: '#/components/schemas/ChatRole'
+        content:
+          type: string
+          minLength: 1
+          description: Trimmed. Last user turn must be ≤ 500 characters. Stored turns are capped at 1000.
+
+    ChatLocation:
+      type: object
+      additionalProperties: false
+      required: [latitude, longitude]
+      properties:
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+
+    ClientRequestId:
+      type: string
+      minLength: 8
+      maxLength: 80
+      pattern: '^[A-Za-z0-9._-]{8,80}$'
+      description: Stable id for one user send. Invalid values are ignored (treated as absent).
+
+    ReplyStyle:
+      type: string
+      enum: [english, urdu_script, roman_urdu]
+
+    PendingActionLabels:
+      type: object
+      additionalProperties: false
+      required: [confirm, dismiss]
+      properties:
+        confirm:
+          type: string
+        dismiss:
+          type: string
+
+    ActionResult:
+      type: object
+      additionalProperties: false
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+        code:
+          type: string
+          description: Present when the confirmed action failed (for example `queue_paused`, `already_joined`).
+
+    CustomerConfirmedAction:
+      oneOf:
+        - $ref: '#/components/schemas/CustomerConfirmedJoin'
+        - $ref: '#/components/schemas/CustomerConfirmedCancel'
+      discriminator:
+        propertyName: name
+        mapping:
+          joinQueue: '#/components/schemas/CustomerConfirmedJoin'
+          cancelTicket: '#/components/schemas/CustomerConfirmedCancel'
+
+    CustomerConfirmedJoin:
+      type: object
+      additionalProperties: false
+      required: [name, organizationId, serviceId]
+      properties:
+        name:
+          type: string
+          const: joinQueue
+        organizationId:
+          $ref: '#/components/schemas/Uuid'
+        serviceId:
+          $ref: '#/components/schemas/Uuid'
+
+    CustomerConfirmedCancel:
+      type: object
+      additionalProperties: false
+      required: [name, ticketId]
+      properties:
+        name:
+          type: string
+          const: cancelTicket
+        ticketId:
+          $ref: '#/components/schemas/Uuid'
+
+    CustomerChatbotRequest:
+      type: object
+      additionalProperties: false
+      description: |
+        Either `messages` (non-empty after filtering) or a valid `confirmedAction` is required.
+        Sending a non-null `confirmedAction` that fails UUID/`name` checks returns 400.
+      properties:
+        messages:
+          type: array
+          maxItems: 12
+          items:
+            $ref: '#/components/schemas/ChatTurn'
+        language:
+          $ref: '#/components/schemas/ChatLanguage'
+        location:
+          oneOf:
+            - $ref: '#/components/schemas/ChatLocation'
+            - type: 'null'
+        confirmedAction:
+          $ref: '#/components/schemas/CustomerConfirmedAction'
+        clientRequestId:
+          $ref: '#/components/schemas/ClientRequestId'
+
+    CustomerBusinessCard:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - category
+        - distanceKm
+        - serviceId
+        - serviceName
+        - price
+        - address
+        - city
+        - isOpen
+        - workingHours
+        - averageWaitMinutes
+        - rating
+        - reviewCount
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+        category:
+          type: string
+        distanceKm:
+          type: [number, 'null']
+        serviceId:
+          type: [string, 'null']
+          format: uuid
+        serviceName:
+          type: [string, 'null']
+        price:
+          type: [number, 'null']
+        address:
+          type: string
+        city:
+          type: string
+        isOpen:
+          type: boolean
+        workingHours:
+          type: [string, 'null']
+        averageWaitMinutes:
+          type: [number, 'null']
+        rating:
+          type: [number, 'null']
+        reviewCount:
+          type: integer
+
+    CustomerTicketCard:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - ticketNumber
+        - organizationName
+        - organizationId
+        - serviceName
+        - departmentName
+        - status
+        - position
+        - peopleAhead
+        - estimatedWaitMinutes
+        - currentServing
+        - queueStatus
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        ticketNumber:
+          type: string
+        organizationName:
+          type: string
+        organizationId:
+          $ref: '#/components/schemas/Uuid'
+        serviceName:
+          type: string
+        departmentName:
+          type: string
+        status:
+          type: string
+        position:
+          type: integer
+        peopleAhead:
+          type: integer
+        estimatedWaitMinutes:
+          type: integer
+        currentServing:
+          type: string
+        queueStatus:
+          type: [string, 'null']
+
+    CustomerFavoriteCard:
+      type: object
+      additionalProperties: false
+      required: [id, name, category, city, address]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+        category:
+          type: string
+        city:
+          type: string
+        address:
+          type: string
+
+    CustomerHistoryCard:
+      type: object
+      additionalProperties: false
+      required: [id, organizationName, organizationId, serviceName, status, visitedAt]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        organizationName:
+          type: string
+        organizationId:
+          $ref: '#/components/schemas/Uuid'
+        serviceName:
+          type: string
+        status:
+          type: string
+        visitedAt:
+          type: string
+          format: date-time
+
+    CustomerPendingAction:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - organizationId
+        - organizationName
+        - serviceId
+        - serviceName
+        - ticketId
+        - ticketNumber
+        - waitingCount
+        - estimatedWaitMinutes
+        - queueStatus
+        - labels
+      properties:
+        type:
+          type: string
+          enum: [join_queue, cancel_ticket]
+        organizationId:
+          type: string
+        organizationName:
+          type: string
+        serviceId:
+          type: [string, 'null']
+        serviceName:
+          type: string
+        ticketId:
+          type: [string, 'null']
+        ticketNumber:
+          type: [string, 'null']
+        waitingCount:
+          type: [number, 'null']
+        estimatedWaitMinutes:
+          type: [number, 'null']
+        queueStatus:
+          type: [string, 'null']
+        labels:
+          $ref: '#/components/schemas/PendingActionLabels'
+
+    CustomerChatbotSuccess:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        message:
+          type: string
+          minLength: 1
+        cards:
+          type: array
+          items:
+            $ref: '#/components/schemas/CustomerBusinessCard'
+        ticket:
+          oneOf:
+            - $ref: '#/components/schemas/CustomerTicketCard'
+            - type: 'null'
+        favorites:
+          type: array
+          items:
+            $ref: '#/components/schemas/CustomerFavoriteCard'
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/CustomerHistoryCard'
+        locationRequired:
+          type: boolean
+        pendingAction:
+          oneOf:
+            - $ref: '#/components/schemas/CustomerPendingAction'
+            - type: 'null'
+        actionResult:
+          $ref: '#/components/schemas/ActionResult'
+
+    BusinessConfirmedAction:
+      oneOf:
+        - $ref: '#/components/schemas/BusinessConfirmedSkip'
+        - $ref: '#/components/schemas/BusinessConfirmedClose'
+      discriminator:
+        propertyName: name
+        mapping:
+          skipCustomer: '#/components/schemas/BusinessConfirmedSkip'
+          closeQueue: '#/components/schemas/BusinessConfirmedClose'
+
+    BusinessConfirmedSkip:
+      type: object
+      additionalProperties: false
+      required: [name, entryId]
+      properties:
+        name:
+          type: string
+          const: skipCustomer
+        entryId:
+          $ref: '#/components/schemas/Uuid'
+
+    BusinessConfirmedClose:
+      type: object
+      additionalProperties: false
+      required: [name, queueId]
+      properties:
+        name:
+          type: string
+          const: closeQueue
+        queueId:
+          $ref: '#/components/schemas/Uuid'
+
+    BusinessChatbotRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        messages:
+          type: array
+          maxItems: 12
+          items:
+            $ref: '#/components/schemas/ChatTurn'
+        language:
+          $ref: '#/components/schemas/ChatLanguage'
+        confirmedAction:
+          $ref: '#/components/schemas/BusinessConfirmedAction'
+        clientRequestId:
+          $ref: '#/components/schemas/ClientRequestId'
+
+    QueueStatusCard:
+      type: object
+      additionalProperties: false
+      required:
+        - queueId
+        - queueName
+        - departmentName
+        - serviceName
+        - status
+        - waitingCount
+        - currentlyServing
+        - nextCustomer
+        - estimatedWaitMinutes
+      properties:
+        queueId:
+          type: string
+        queueName:
+          type: string
+        departmentName:
+          type: string
+        serviceName:
+          type: string
+        status:
+          type: string
+        waitingCount:
+          type: integer
+        currentlyServing:
+          type: [string, 'null']
+        nextCustomer:
+          type: [string, 'null']
+        estimatedWaitMinutes:
+          type: [number, 'null']
+
+    WaitingCustomerCard:
+      type: object
+      additionalProperties: false
+      required: [entryId, ticketNumber, serviceName, status, position]
+      properties:
+        entryId:
+          type: string
+        ticketNumber:
+          type: string
+        serviceName:
+          type: string
+        status:
+          type: string
+        position:
+          type: integer
+
+    ServiceInfoCard:
+      type: object
+      additionalProperties: false
+      required: [id, name, departmentName, price, isActive]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        departmentName:
+          type: string
+        price:
+          type: [number, 'null']
+        isActive:
+          type: boolean
+
+    StatsCard:
+      type: object
+      additionalProperties: false
+      required: [period, customers, served, skipped, cancelled, waiting]
+      properties:
+        period:
+          type: string
+        customers:
+          type: integer
+        served:
+          type: integer
+        skipped:
+          type: integer
+        cancelled:
+          type: integer
+        waiting:
+          type: integer
+
+    OwnerHistoryCard:
+      type: object
+      additionalProperties: false
+      required: [id, ticketNumber, serviceName, departmentName, status, visitedAt]
+      properties:
+        id:
+          type: string
+        ticketNumber:
+          type: string
+        serviceName:
+          type: string
+        departmentName:
+          type: string
+        status:
+          type: string
+        visitedAt:
+          type: string
+
+    BusinessPendingAction:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - organizationId
+        - organizationName
+        - serviceId
+        - serviceName
+        - ticketId
+        - ticketNumber
+        - entryId
+        - queueId
+        - waitingCount
+        - estimatedWaitMinutes
+        - queueStatus
+        - labels
+      properties:
+        type:
+          type: string
+          enum: [skip_customer, close_queue]
+        organizationId:
+          type: string
+        organizationName:
+          type: string
+        serviceId:
+          type: [string, 'null']
+        serviceName:
+          type: string
+        ticketId:
+          type: [string, 'null']
+        ticketNumber:
+          type: [string, 'null']
+        entryId:
+          type: [string, 'null']
+        queueId:
+          type: [string, 'null']
+        waitingCount:
+          type: [number, 'null']
+        estimatedWaitMinutes:
+          type: [number, 'null']
+        queueStatus:
+          type: [string, 'null']
+        labels:
+          $ref: '#/components/schemas/PendingActionLabels'
+
+    BusinessChatbotSuccess:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        message:
+          type: string
+          minLength: 1
+        queueStatus:
+          type: array
+          items:
+            $ref: '#/components/schemas/QueueStatusCard'
+        waiting:
+          type: array
+          items:
+            $ref: '#/components/schemas/WaitingCustomerCard'
+        services:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServiceInfoCard'
+        stats:
+          oneOf:
+            - $ref: '#/components/schemas/StatsCard'
+            - type: 'null'
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/OwnerHistoryCard'
+        pendingAction:
+          oneOf:
+            - $ref: '#/components/schemas/BusinessPendingAction'
+            - type: 'null'
+        actionResult:
+          oneOf:
+            - $ref: '#/components/schemas/ActionResult'
+            - type: 'null'
+
+    ChatFailureCode:
+      type: string
+      enum:
+        - unauthorized
+        - forbidden
+        - invalid_data
+        - timeout
+        - network
+        - not_configured
+        - rate_limited
+        - unavailable
+        - unknown
+
+    ChatError:
+      type: object
+      additionalProperties: false
+      required: [error, code, retryable]
+      properties:
+        error:
+          type: string
+          description: User-facing message. Never includes provider API keys.
+        code:
+          $ref: '#/components/schemas/ChatFailureCode'
+        retryable:
+          type: boolean
+        retryAfterSeconds:
+          type: [integer, 'null']
+          minimum: 1
+
+    UnauthorizedBody:
+      type: object
+      additionalProperties: true
+      description: |
+        Function body is ChatError (`error`, `code`, `retryable`).
+        Gateway `verify_jwt` bodies typically use `code` plus `message` or `msg`.
+      properties:
+        error:
+          type: string
+        code:
+          description: Function uses ChatFailureCode strings. Gateway 401s may use an integer or string.
+          type: [string, integer]
+        retryable:
+          type: boolean
+        retryAfterSeconds:
+          type: [integer, 'null']
+        message:
+          type: string
+        msg:
+          type: string
+
+    VoiceTranscribeRequest:
+      type: object
+      additionalProperties: false
+      required: [audioBase64, durationMs]
+      properties:
+        audioBase64:
+          type: string
+          minLength: 1
+          description: Raw audio bytes, Base64. Whitespace is stripped. Not stored.
+        mimeType:
+          type: string
+          default: audio/mp4
+          enum:
+            - audio/mp4
+            - audio/m4a
+            - audio/x-m4a
+            - audio/aac
+            - audio/mpeg
+            - audio/wav
+            - audio/webm
+            - audio/3gpp
+        durationMs:
+          type: number
+          exclusiveMinimum: 0
+          description: Client-reported duration. Must be ≥ 400 and ≤ 16000.
+
+    VoiceDetectedLanguage:
+      type: string
+      enum: [en, ur, unknown]
+
+    VoiceTranscribeSuccess:
+      type: object
+      additionalProperties: false
+      required: [transcript, detectedLanguage, confidence, replyStyle]
+      properties:
+        transcript:
+          type: string
+          minLength: 1
+          maxLength: 500
+        detectedLanguage:
+          $ref: '#/components/schemas/VoiceDetectedLanguage'
+        confidence:
+          type: [number, 'null']
+        replyStyle:
+          $ref: '#/components/schemas/ReplyStyle'
+
+    VoiceSpeakRequest:
+      type: object
+      additionalProperties: false
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Assistant message to speak. Markdown/JSON dumps are stripped server-side.
+        replyStyle:
+          $ref: '#/components/schemas/ReplyStyle'
+
+    VoiceSpeakSuccess:
+      type: object
+      additionalProperties: false
+      required: [audioBase64, mimeType]
+      properties:
+        audioBase64:
+          type: string
+          minLength: 1
+          description: MP3 bytes as Base64. Not stored server-side.
+        mimeType:
+          type: string
+          const: audio/mpeg
+
+    VoiceFailureCode:
+      type: string
+      enum:
+        - unauthorized
+        - forbidden
+        - invalid_data
+        - no_speech
+        - timeout
+        - network
+        - not_configured
+        - rate_limited
+        - unavailable
+        - unknown
+        - tts_unavailable
+
+    VoiceError:
+      type: object
+      additionalProperties: false
+      required: [error, code, retryable]
+      properties:
+        error:
+          type: string
+        code:
+          $ref: '#/components/schemas/VoiceFailureCode'
+        retryable:
+          type: boolean
+        retryAfterSeconds:
+          type: [integer, 'null']
+          minimum: 1
+
+    SendPushRequest:
+      type: object
+      additionalProperties: true
+      description: Either `notificationId` or `record.id` must be present.
+      properties:
+        notificationId:
+          $ref: '#/components/schemas/Uuid'
+        eventKey:
+          type: [string, 'null']
+        record:
+          type: object
+          additionalProperties: true
+          properties:
+            id:
+              $ref: '#/components/schemas/Uuid'
+
+    SendPushDelivered:
+      type: object
+      additionalProperties: false
+      required: [ok, sent, failed, deactivated]
+      properties:
+        ok:
+          type: boolean
+          const: true
+        sent:
+          type: integer
+          minimum: 0
+        failed:
+          type: integer
+          minimum: 0
+        deactivated:
+          type: integer
+          minimum: 0
+
+    SendPushSkipped:
+      type: object
+      additionalProperties: false
+      required: [skipped, reason]
+      properties:
+        skipped:
+          type: boolean
+          const: true
+        reason:
+          type: string
+          enum: [type_not_push_eligible, push_disabled, no_active_tokens]
+
+    SendPushSuccess:
+      oneOf:
+        - $ref: '#/components/schemas/SendPushDelivered'
+        - $ref: '#/components/schemas/SendPushSkipped'
+
+    SendPushError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    SendPushNotFound:
+      type: object
+      additionalProperties: false
+      required: [error, skipped]
+      properties:
+        error:
+          type: string
+        skipped:
+          type: boolean
+          const: true

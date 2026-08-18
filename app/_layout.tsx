@@ -1,5 +1,7 @@
 import 'react-native-worklets';
 import 'react-native-reanimated';
+import { sentryNavigationIntegration } from '@/lib/sentry';
+import * as Sentry from '@sentry/react-native';
 import {
   PlusJakartaSans_400Regular,
   PlusJakartaSans_500Medium,
@@ -7,8 +9,12 @@ import {
   PlusJakartaSans_700Bold,
   useFonts,
 } from '@expo-google-fonts/plus-jakarta-sans';
-import { ThemeProvider, DarkTheme as NavDark, DefaultTheme as NavLight } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import {
+  ThemeProvider,
+  DarkTheme as NavDark,
+  DefaultTheme as NavLight,
+} from '@react-navigation/native';
+import { Stack, useNavigationContainerRef } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { Component, useEffect, type ErrorInfo, type ReactNode } from 'react';
@@ -20,6 +26,7 @@ import '@/global.css';
 import { Colors } from '@/constants/colors';
 import { useColorScheme } from '@/hooks/use-theme';
 import { AppProviders } from '@/lib/providers';
+import { reportError } from '@/lib/monitoring';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -53,10 +60,7 @@ export const unstable_settings = {
   initialRouteName: 'index',
 };
 
-class RootErrorBoundary extends Component<
-  { children: ReactNode },
-  { error: Error | null }
-> {
+class RootErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };
 
   static getDerivedStateFromError(error: Error) {
@@ -65,6 +69,10 @@ class RootErrorBoundary extends Component<
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('MeriBaari root error', error, info.componentStack);
+    reportError(error, {
+      feature: 'root-error-boundary',
+      extras: { componentStack: info.componentStack ?? '' },
+    });
   }
 
   render() {
@@ -102,14 +110,19 @@ const errorStyles = RNStyleSheet.create({
   },
 });
 
-export default function RootLayout() {
+function RootLayout() {
   const colorScheme = useColorScheme();
+  const navigationRef = useNavigationContainerRef();
   const [fontsLoaded, fontError] = useFonts({
     PlusJakartaSans_400Regular,
     PlusJakartaSans_500Medium,
     PlusJakartaSans_600SemiBold,
     PlusJakartaSans_700Bold,
   });
+
+  useEffect(() => {
+    sentryNavigationIntegration.registerNavigationContainer(navigationRef);
+  }, [navigationRef]);
 
   useEffect(() => {
     if (fontsLoaded || fontError) {
@@ -142,3 +155,5 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+export default Sentry.wrap(RootLayout);

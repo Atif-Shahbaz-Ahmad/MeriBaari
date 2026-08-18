@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Keyboard, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import {
-  setAudioModeAsync,
-  useAudioRecorder,
-  useAudioRecorderState,
-} from 'expo-audio';
+import { setAudioModeAsync, useAudioRecorder, useAudioRecorderState } from 'expo-audio';
 
 import { getContainer } from '@/data';
 import {
@@ -23,10 +19,15 @@ import {
   VOICE_MIN_DURATION_MS,
 } from '@/domain/services/voice.service';
 import { getVoiceCopy } from '@/features/voice/copy';
-import { deleteLocalRecording, readRecordingAsBase64, writeTempTtsAudio } from '@/features/voice/local-audio';
+import {
+  deleteLocalRecording,
+  readRecordingAsBase64,
+  writeTempTtsAudio,
+} from '@/features/voice/local-audio';
 import { VOICE_RECORDING_MIME, VOICE_RECORDING_OPTIONS } from '@/features/voice/recording-options';
 import { playTtsFile, stopTtsPlayback } from '@/features/voice/tts-playback';
 import { useTranslation } from '@/hooks/use-translation';
+import { reportError } from '@/lib/monitoring';
 
 const isNativeVoice = Platform.OS === 'ios' || Platform.OS === 'android';
 const TTS_CACHE_LIMIT = 3;
@@ -108,8 +109,19 @@ export function useVoiceSession({ sendText, canUse, isSending }: UseVoiceSession
       setTtsLoading(false);
       setSpeakingMessageId(null);
       setErrorCode(mapped.code);
-      setErrorMessage(copy(getVoiceErrorCopyKey(mapped.code).replace('voice.', '')) || getVoiceErrorMessage(mapped));
+      setErrorMessage(
+        copy(getVoiceErrorCopyKey(mapped.code).replace('voice.', '')) ||
+          getVoiceErrorMessage(mapped),
+      );
       setStatus(mapped.code === 'permission_denied' ? 'permission_denied' : 'error');
+      if (mapped.code !== 'no_speech') {
+        reportError(mapped, {
+          feature: 'voice',
+          provider: 'client',
+          level: mapped.code === 'permission_denied' ? 'warning' : 'error',
+          tags: { platform: 'mobile', code: mapped.code },
+        });
+      }
     },
     [copy],
   );
@@ -119,13 +131,16 @@ export function useVoiceSession({ sendText, canUse, isSending }: UseVoiceSession
     return ttsCache.current.find((entry) => entry.key === key) ?? null;
   }, []);
 
-  const cacheSet = useCallback((text: string, style: ReplyStyle, audioBase64: string, mimeType: string) => {
-    const key = `${style}:${text}`;
-    ttsCache.current = [
-      { key, audioBase64, mimeType },
-      ...ttsCache.current.filter((entry) => entry.key !== key),
-    ].slice(0, TTS_CACHE_LIMIT);
-  }, []);
+  const cacheSet = useCallback(
+    (text: string, style: ReplyStyle, audioBase64: string, mimeType: string) => {
+      const key = `${style}:${text}`;
+      ttsCache.current = [
+        { key, audioBase64, mimeType },
+        ...ttsCache.current.filter((entry) => entry.key !== key),
+      ].slice(0, TTS_CACHE_LIMIT);
+    },
+    [],
+  );
 
   const stopSpeaking = useCallback(() => {
     speakGen.current += 1;
@@ -206,6 +221,11 @@ export function useVoiceSession({ sendText, canUse, isSending }: UseVoiceSession
         setTtsLoading(false);
         setSpeakingMessageId(null);
         setStatus('idle');
+        reportError(mapped, {
+          feature: 'voice',
+          provider: 'tts',
+          tags: { platform: 'mobile', code: mapped.code },
+        });
       }
     },
     [cacheGet, cacheSet, copy],
@@ -225,10 +245,7 @@ export function useVoiceSession({ sendText, canUse, isSending }: UseVoiceSession
 
       try {
         if (durationMs < VOICE_MIN_DURATION_MS) {
-          throw new VoiceError(
-            'no_speech',
-            'I did not catch that. Please try speaking again.',
-          );
+          throw new VoiceError('no_speech', 'I did not catch that. Please try speaking again.');
         }
 
         const { audioBase64 } = await readRecordingAsBase64(uri);
@@ -270,10 +287,7 @@ export function useVoiceSession({ sendText, canUse, isSending }: UseVoiceSession
       await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
       const uri = recorder.uri;
       if (!uri) {
-        throw new VoiceError(
-          'no_speech',
-          'I did not catch that. Please try speaking again.',
-        );
+        throw new VoiceError('no_speech', 'I did not catch that. Please try speaking again.');
       }
       await transcribeUri(uri, durationMs);
     } catch (error) {

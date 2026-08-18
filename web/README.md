@@ -30,6 +30,7 @@ In the Vercel project: **Settings → Build and Deployment**
 2. Enable **Include source files outside of the Root Directory in the Build Step** (the web app imports shared code from the parent folder)
 3. **Framework Preset:** Next.js
 4. Add env vars: `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` (same values as the mobile app)
+5. Add Sentry env vars for the `meribaari-web` project: `NEXT_PUBLIC_SENTRY_DSN`, plus `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, and `SENTRY_PROJECT=meribaari-web` for source maps. See `docs/sentry.md`.
 
 Then **Redeploy**.
 

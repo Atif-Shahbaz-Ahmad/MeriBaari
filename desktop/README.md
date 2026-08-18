@@ -16,7 +16,7 @@ EXPO_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=YOUR_ANON_KEY
 ```
 
-Never put `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `DEEPGRAM_API_KEY`, or `AZURE_SPEECH_KEY` in desktop files. Those stay in Edge Functions.
+Never put `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `DEEPGRAM_API_KEY`, `AZURE_SPEECH_KEY`, or `SENTRY_AUTH_TOKEN` in desktop files. Provider keys stay in Edge Functions. Use `VITE_SENTRY_DSN` for the `meribaari-desktop` Sentry project. See `docs/sentry.md`.
 
 ## Develop
 

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MeriBaari HTTP APIs</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui.css"
+      crossorigin
+    />
+    <style>
+      html {
+        box-sizing: border-box;
+      }
+      *,
+      *::before,
+      *::after {
+        box-sizing: inherit;
+      }
+      body {
+        margin: 0;
+        background: #fafafa;
+      }
+      .topbar {
+        display: none;
+      }
+      .auth-note {
+        max-width: 1460px;
+        margin: 0 auto;
+        padding: 16px 20px 0;
+        font-family: sans-serif;
+        color: #3b4151;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      .auth-note code {
+        background: #eef2f7;
+        padding: 1px 6px;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="auth-note">
+      <strong>MeriBaari HTTP APIs</strong> — OpenAPI 3.1 for existing Supabase Edge Functions.
+      Authorize with a signed-in user <code>Bearer</code> JWT and the public <code>apikey</code>
+      (anon key). Do not paste service-role, Gemini, Deepgram, or Azure secrets. Static UI only; no
+      extra API server.
+    </div>
+    <div id="swagger-ui"></div>
+    <script
+      src="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-bundle.js"
+      crossorigin
+    ></script>
+    <script>
+      function specUrl() {
+        const path = window.location.pathname.replace(/\\/g, '/');
+        if (path.endsWith('/docs/api/') || path.endsWith('/docs/api/index.html')) {
+          return new URL('../../openapi.yaml', window.location.href).href;
+        }
+        if (path.includes('/docs/api')) {
+          return new URL('../../openapi.yaml', window.location.href).href;
+        }
+        return '/openapi.yaml';
+      }
+
+      window.ui = SwaggerUIBundle({
+        url: specUrl(),
+        dom_id: '#swagger-ui',
+        layout: 'BaseLayout',
+        deepLinking: true,
+        filter: true,
+        tryItOutEnabled: true,
+        persistAuthorization: true,
+        displayRequestDuration: true,
+        displayOperationId: true,
+        showExtensions: true,
+        showCommonExtensions: true,
+        withCredentials: false,
+        validatorUrl: null,
+        docExpansion: 'list',
+        defaultModelsExpandDepth: 2,
+        defaultModelExpandDepth: 2,
+        tagsSorter: 'alpha',
+        operationsSorter: 'alpha',
+        supportedSubmitMethods: ['get', 'post'],
+        presets: [SwaggerUIBundle.presets.apis],
+      });
+    </script>
+  </body>
+</html>

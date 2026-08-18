@@ -16,16 +16,16 @@ Do **not** configure custom SMTP, Resend, or branded email templates at this sta
 
 Concurrency-safe RPCs (migration `20260808000008_queue_system.sql`):
 
-| Function | Purpose |
-|----------|---------|
+| Function                 | Purpose                             |
+| ------------------------ | ----------------------------------- |
 | `get_queue_join_preview` | Confirm-screen snapshot (no ticket) |
-| `join_queue` | Atomically create entry + ticket |
-| `cancel_my_ticket` | Customer cancel |
-| `call_next_customer` | Business call next (SKIP LOCKED) |
-| `start_serving_customer` | Mark serving |
-| `serve_customer` | Mark served |
-| `skip_customer` | Skip + optionally call next |
-| `set_queue_status` | Pause / resume / close |
+| `join_queue`             | Atomically create entry + ticket    |
+| `cancel_my_ticket`       | Customer cancel                     |
+| `call_next_customer`     | Business call next (SKIP LOCKED)    |
+| `start_serving_customer` | Mark serving                        |
+| `serve_customer`         | Mark served                         |
+| `skip_customer`          | Skip + optionally call next         |
+| `set_queue_status`       | Pause / resume / close              |
 
 ## Realtime
 
@@ -161,6 +161,16 @@ npx supabase secrets set DEEPGRAM_TTS_MODEL=aura-2-thalia-en
 
 Do not put these keys in Expo `.env`, `EXPO_PUBLIC_*`, `app.json`, or React Native code.
 
+## Sentry
+
+Edge Functions report provider failures to the `meribaari-functions` Sentry project. Set the functions DSN as a secret (never in client env):
+
+```bash
+npx supabase secrets set SENTRY_DSN=YOUR_FUNCTIONS_DSN
+npx supabase secrets set SENTRY_ENVIRONMENT=production
+```
+
+See `docs/sentry.md`.
 
 ## Applying migrations
 

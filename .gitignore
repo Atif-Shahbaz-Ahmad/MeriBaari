@@ -33,6 +33,7 @@ yarn-error.*
 # local env files
 .env
 .env*.local
+.env.sentry-build-plugin
 
 # Firebase FCM V1 *service account* private keys (never commit)
 # google-services.json is client config and MUST be git-tracked for EAS Build.

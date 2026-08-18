@@ -22,6 +22,8 @@ function readPublicBackend() {
   return {
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL ?? '',
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',
+    sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN ?? '',
+    sentryEnvironment: process.env.EXPO_PUBLIC_SENTRY_ENVIRONMENT ?? '',
   };
 }
 
@@ -47,13 +49,27 @@ function assertStandaloneBackend() {
 
 module.exports = ({ config }) => {
   assertStandaloneBackend();
-  const { supabaseUrl, supabaseAnonKey } = readPublicBackend();
+  const { supabaseUrl, supabaseAnonKey, sentryDsn, sentryEnvironment } = readPublicBackend();
+  const plugins = [...(config.plugins ?? [])];
+  if (process.env.SENTRY_ORG) {
+    plugins.push([
+      '@sentry/react-native/expo',
+      {
+        url: 'https://sentry.io/',
+        project: process.env.SENTRY_PROJECT || 'meribaari-mobile',
+        organization: process.env.SENTRY_ORG,
+      },
+    ]);
+  }
   return {
     ...config,
+    plugins,
     extra: {
       ...config.extra,
       supabaseUrl,
       supabaseAnonKey,
+      sentryDsn,
+      sentryEnvironment,
     },
   };
 };

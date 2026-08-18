@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import react from '@vitejs/plugin-react';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 import { defineConfig } from 'vite';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -34,13 +35,14 @@ function loadParentEnv() {
 loadParentEnv();
 
 const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ||
-  process.env.EXPO_PUBLIC_SUPABASE_URL ||
-  '';
+  process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
-  '';
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+const sentryDsn = process.env.VITE_SENTRY_DSN || '';
+const sentryEnvironment =
+  process.env.VITE_SENTRY_ENVIRONMENT || process.env.SENTRY_ENVIRONMENT || '';
+const sentryRelease =
+  process.env.VITE_SENTRY_RELEASE || process.env.SENTRY_RELEASE || 'meribaari-desktop@1.0.0';
 
 function exactAlias(find: string, replacement: string) {
   const escaped = find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -53,10 +55,7 @@ const aliases = [
   exactAlias('@/lib/auth-redirect', path.join(desktopSrc, 'lib/auth-redirect.ts')),
   exactAlias('@/lib/avatar-image', path.join(webSrc, 'lib/avatar-image.ts')),
   exactAlias('@/lib/query-client', path.join(webSrc, 'lib/query-client.ts')),
-  exactAlias(
-    '@/lib/i18n/locale-context',
-    path.join(webSrc, 'lib/locale-context.tsx'),
-  ),
+  exactAlias('@/lib/i18n/locale-context', path.join(webSrc, 'lib/locale-context.tsx')),
   exactAlias('@/lib/i18n/rtl', path.join(webSrc, 'lib/rtl.ts')),
   exactAlias('@/lib/geo', path.join(webSrc, 'lib/geo.ts')),
   exactAlias('@/data', path.join(webSrc, 'di/index.ts')),
@@ -78,25 +77,16 @@ const aliases = [
   exactAlias('expo-secure-store', path.join(webSrc, 'shims/expo-secure-store.ts')),
   exactAlias('expo-linking', path.join(webSrc, 'shims/expo-linking.ts')),
   exactAlias('expo-auth-session', path.join(webSrc, 'shims/expo-auth-session.ts')),
-  exactAlias(
-    'expo-image-manipulator',
-    path.join(webSrc, 'shims/expo-image-manipulator.ts'),
-  ),
+  exactAlias('expo-image-manipulator', path.join(webSrc, 'shims/expo-image-manipulator.ts')),
   exactAlias('expo-audio', path.join(webSrc, 'shims/expo-audio.ts')),
-  exactAlias(
-    'expo-notifications',
-    path.join(webSrc, 'shims/expo-notifications.ts'),
-  ),
+  exactAlias('expo-notifications', path.join(webSrc, 'shims/expo-notifications.ts')),
   exactAlias('expo-location', path.join(webSrc, 'shims/expo-location.ts')),
   exactAlias('expo-constants', path.join(webSrc, 'shims/expo-constants.ts')),
   exactAlias('expo-device', path.join(webSrc, 'shims/expo-device.ts')),
   exactAlias('expo-file-system', path.join(webSrc, 'shims/expo-file-system.ts')),
   exactAlias('expo-haptics', path.join(webSrc, 'shims/expo-haptics.ts')),
   exactAlias('expo-router', path.join(webSrc, 'shims/expo-router.ts')),
-  exactAlias(
-    '@react-navigation/native',
-    path.join(webSrc, 'shims/react-navigation.ts'),
-  ),
+  exactAlias('@react-navigation/native', path.join(webSrc, 'shims/react-navigation.ts')),
   exactAlias('next/link', path.join(desktopSrc, 'shims/next-link.tsx')),
   exactAlias('next/navigation', path.join(desktopSrc, 'shims/next-navigation.ts')),
   exactAlias('next/font/google', path.join(desktopSrc, 'shims/next-font.ts')),
@@ -123,23 +113,11 @@ const aliases = [
   { find: /^react$/, replacement: path.join(__dirname, 'node_modules/react') },
   exactAlias(
     '@tanstack/react-query',
-    path.join(
-      __dirname,
-      'node_modules/@tanstack/react-query/build/modern/index.js',
-    ),
+    path.join(__dirname, 'node_modules/@tanstack/react-query/build/modern/index.js'),
   ),
-  exactAlias(
-    'zustand',
-    path.join(__dirname, 'node_modules/zustand/esm/index.mjs'),
-  ),
-  exactAlias(
-    'zustand/vanilla',
-    path.join(__dirname, 'node_modules/zustand/esm/vanilla.mjs'),
-  ),
-  exactAlias(
-    'zustand/react',
-    path.join(__dirname, 'node_modules/zustand/esm/react.mjs'),
-  ),
+  exactAlias('zustand', path.join(__dirname, 'node_modules/zustand/esm/index.mjs')),
+  exactAlias('zustand/vanilla', path.join(__dirname, 'node_modules/zustand/esm/vanilla.mjs')),
+  exactAlias('zustand/react', path.join(__dirname, 'node_modules/zustand/esm/react.mjs')),
   {
     find: '@supabase/supabase-js',
     replacement: path.join(repoRoot, 'node_modules/@supabase/supabase-js'),
@@ -170,6 +148,16 @@ export default defineConfig(({ command }) => {
           return html.replace(/(\s)crossorigin(="[^"]*")?/g, '');
         },
       },
+      sentryVitePlugin({
+        org: process.env.SENTRY_ORG,
+        project: process.env.SENTRY_PROJECT || 'meribaari-desktop',
+        authToken: process.env.SENTRY_AUTH_TOKEN,
+        disable: command !== 'build' || !process.env.SENTRY_AUTH_TOKEN,
+        telemetry: false,
+        sourcemaps: {
+          filesToDeleteAfterUpload: ['dist/**/*.map'],
+        },
+      }),
     ],
     clearScreen: false,
     base: './',
@@ -177,16 +165,19 @@ export default defineConfig(({ command }) => {
     define: {
       __DEV__: JSON.stringify(command !== 'build'),
       'process.env.NEXT_PUBLIC_SUPABASE_URL': JSON.stringify(supabaseUrl),
-      'process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY':
-        JSON.stringify(supabaseAnonKey),
+      'process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY': JSON.stringify(supabaseAnonKey),
       'process.env.EXPO_PUBLIC_SUPABASE_URL': JSON.stringify(supabaseUrl),
-      'process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY':
-        JSON.stringify(supabaseAnonKey),
+      'process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY': JSON.stringify(supabaseAnonKey),
       'process.env.VITE_SUPABASE_URL': JSON.stringify(supabaseUrl),
       'process.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(supabaseAnonKey),
-      'process.env.NODE_ENV': JSON.stringify(
-        command === 'build' ? 'production' : 'development',
-      ),
+      'process.env.VITE_SENTRY_DSN': JSON.stringify(sentryDsn),
+      'process.env.VITE_SENTRY_ENVIRONMENT': JSON.stringify(sentryEnvironment),
+      'process.env.VITE_SENTRY_RELEASE': JSON.stringify(sentryRelease),
+      'import.meta.env.VITE_SENTRY_DSN': JSON.stringify(sentryDsn),
+      'import.meta.env.VITE_SENTRY_ENVIRONMENT': JSON.stringify(sentryEnvironment),
+      'import.meta.env.VITE_SENTRY_RELEASE': JSON.stringify(sentryRelease),
+      'import.meta.env.VITE_APP_VERSION': JSON.stringify('1.0.0'),
+      'process.env.NODE_ENV': JSON.stringify(command === 'build' ? 'production' : 'development'),
     },
     resolve: {
       alias: aliases,
@@ -209,7 +200,9 @@ export default defineConfig(({ command }) => {
       emptyOutDir: true,
       target: ['es2021', 'chrome105', 'safari14'],
       minify: !process.env.TAURI_DEBUG,
-      sourcemap: Boolean(process.env.TAURI_DEBUG),
+      sourcemap:
+        Boolean(process.env.TAURI_DEBUG) ||
+        (command === 'build' && Boolean(process.env.SENTRY_AUTH_TOKEN)),
     },
   };
 });

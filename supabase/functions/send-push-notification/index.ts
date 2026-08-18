@@ -8,6 +8,12 @@
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
+import {
+  captureException,
+  flushSentry,
+  initFunctionSentry,
+  maybeHandleSentryTest,
+} from '../_shared/sentry.ts';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
@@ -74,11 +80,20 @@ Deno.serve(async (req) => {
     return json({ error: 'Method not allowed' }, 405);
   }
 
+  initFunctionSentry('send-push-notification');
+  const testResponse = await maybeHandleSentryTest(req, 'send-push-notification');
+  if (testResponse) return testResponse;
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!supabaseUrl || !serviceRoleKey) {
+      captureException(new Error('Push function is missing Supabase env'), {
+        functionName: 'send-push-notification',
+        feature: 'push',
+        tags: { category: 'not_configured' },
+      });
       return json({ error: 'Server misconfigured' }, 500);
     }
 
@@ -203,6 +218,12 @@ Deno.serve(async (req) => {
 
     if (!expoResponse.ok) {
       console.error('[send-push] Expo HTTP error', expoResponse.status);
+      captureException(new Error(`Expo push request failed (${expoResponse.status})`), {
+        functionName: 'send-push-notification',
+        feature: 'push',
+        provider: 'expo',
+        tags: { status: String(expoResponse.status) },
+      });
       return json({ error: 'Expo push request failed' }, 502);
     }
 
@@ -228,10 +249,7 @@ Deno.serve(async (req) => {
     tickets.forEach((ticket, index) => {
       if (ticket.status !== 'error') return;
       const errorCode = ticket.details?.error;
-      if (
-        errorCode === 'DeviceNotRegistered' ||
-        errorCode === 'InvalidCredentials'
-      ) {
+      if (errorCode === 'DeviceNotRegistered' || errorCode === 'InvalidCredentials') {
         const token = activeTokens[index]?.token;
         if (token) {
           invalidTokens.push(token);
@@ -255,10 +273,9 @@ Deno.serve(async (req) => {
     });
 
     if (invalidTokens.length > 0) {
-      const { error: deactivateError } = await supabase.rpc(
-        'deactivate_push_tokens_by_values',
-        { p_tokens: invalidTokens },
-      );
+      const { error: deactivateError } = await supabase.rpc('deactivate_push_tokens_by_values', {
+        p_tokens: invalidTokens,
+      });
       if (deactivateError) {
         console.error('[send-push] token deactivation failed', {
           attemptedCount: invalidTokens.length,
@@ -272,9 +289,7 @@ Deno.serve(async (req) => {
               error: ticket.details?.error ?? null,
             }))
             .filter(
-              (item) =>
-                item.error === 'DeviceNotRegistered' ||
-                item.error === 'InvalidCredentials',
+              (item) => item.error === 'DeviceNotRegistered' || item.error === 'InvalidCredentials',
             ),
         });
       }
@@ -283,9 +298,7 @@ Deno.serve(async (req) => {
     }
 
     // Touch last_used_at for successful deliveries
-    const okTokenIds = activeTokens
-      .filter((_, i) => tickets[i]?.status === 'ok')
-      .map((t) => t.id);
+    const okTokenIds = activeTokens.filter((_, i) => tickets[i]?.status === 'ok').map((t) => t.id);
 
     if (okTokenIds.length > 0) {
       await supabase
@@ -300,10 +313,16 @@ Deno.serve(async (req) => {
       failed: tickets.filter((t) => t.status === 'error').length,
       deactivated: invalidTokens.length,
     });
-
   } catch (error) {
-    console.error('[send-push] unexpected error', error);
+    console.error('[send-push] unexpected error');
+    captureException(error, {
+      functionName: 'send-push-notification',
+      feature: 'push',
+      provider: 'expo',
+    });
     return json({ error: 'Internal error' }, 500);
+  } finally {
+    await flushSentry();
   }
 });
 
@@ -319,9 +338,7 @@ function isAuthorized(req: Request, serviceRoleKey: string): boolean {
   return false;
 }
 
-function normalizeTickets(
-  data: ExpoPushTicket | ExpoPushTicket[] | undefined,
-): ExpoPushTicket[] {
+function normalizeTickets(data: ExpoPushTicket | ExpoPushTicket[] | undefined): ExpoPushTicket[] {
   if (!data) return [];
   return Array.isArray(data) ? data : [data];
 }
@@ -329,8 +346,7 @@ function normalizeTickets(
 function corsHeaders(): HeadersInit {
   return {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers':
-      'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   };
 }
 

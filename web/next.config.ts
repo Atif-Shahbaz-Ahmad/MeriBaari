@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 import { existsSync, readFileSync } from 'fs';
 import path from 'path';
+import { withSentryConfig } from '@sentry/nextjs';
 
 function loadParentEnv() {
   const envPath = path.resolve(__dirname, '../.env');
@@ -51,10 +52,7 @@ const aliases: Record<string, string> = {
   '@/data/di/index': path.join(webSrc, 'di/index.ts'),
   '@/hooks/use-theme': path.join(webSrc, 'hooks/use-theme.ts'),
   '@/hooks/use-auth': path.join(webSrc, 'hooks/use-auth.ts'),
-  '@/features/search/hooks/use-user-location': path.join(
-    webSrc,
-    'hooks/use-user-location.ts',
-  ),
+  '@/features/search/hooks/use-user-location': path.join(webSrc, 'hooks/use-user-location.ts'),
   '@/features/notifications/hooks/use-push-notifications': path.join(
     webSrc,
     'hooks/use-push-notifications.ts',
@@ -89,13 +87,14 @@ const aliases: Record<string, string> = {
 };
 
 const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ||
-  process.env.EXPO_PUBLIC_SUPABASE_URL ||
-  '';
+  process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
-  '';
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+const sentryDsn = process.env.NEXT_PUBLIC_SENTRY_DSN || '';
+const sentryRelease =
+  process.env.NEXT_PUBLIC_SENTRY_RELEASE ||
+  process.env.SENTRY_RELEASE ||
+  (process.env.VERCEL_GIT_COMMIT_SHA ? `meribaari-web@${process.env.VERCEL_GIT_COMMIT_SHA}` : '');
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -122,6 +121,9 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_SUPABASE_ANON_KEY: supabaseAnonKey,
     EXPO_PUBLIC_SUPABASE_URL: supabaseUrl,
     EXPO_PUBLIC_SUPABASE_ANON_KEY: supabaseAnonKey,
+    NEXT_PUBLIC_SENTRY_DSN: sentryDsn,
+    NEXT_PUBLIC_SENTRY_RELEASE: sentryRelease,
+    ...(process.env.VERCEL_ENV ? { NEXT_PUBLIC_VERCEL_ENV: process.env.VERCEL_ENV } : {}),
   },
   webpack: (config) => {
     config.resolve.alias = {
@@ -132,12 +134,25 @@ const nextConfig: NextConfig = {
     };
     config.resolve.modules = [
       webModules,
-      ...(Array.isArray(config.resolve.modules)
-        ? config.resolve.modules
-        : ['node_modules']),
+      ...(Array.isArray(config.resolve.modules) ? config.resolve.modules : ['node_modules']),
     ];
     return config;
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT || 'meribaari-web',
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  sourcemaps: {
+    disable: !process.env.SENTRY_AUTH_TOKEN,
+  },
+  telemetry: false,
+  webpack: {
+    treeshake: {
+      removeDebugLogging: true,
+    },
+  },
+});

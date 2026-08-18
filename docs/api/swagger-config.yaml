@@ -1,0 +1,31 @@
+# Swagger UI configuration for the existing MeriBaari HTTP APIs.
+# Loaded by docs/api/index.html. Does not start Express/NestJS.
+#
+# Serve the repo root so both this file and /openapi.yaml are reachable:
+#   npx --yes http-server . -p 4173 -c-1 -o /docs/api/index.html
+
+url: /openapi.yaml
+dom_id: '#swagger-ui'
+layout: BaseLayout
+deepLinking: true
+filter: true
+tryItOutEnabled: true
+persistAuthorization: true
+displayRequestDuration: true
+displayOperationId: true
+showExtensions: true
+showCommonExtensions: true
+withCredentials: false
+validatorUrl: null
+syntaxHighlight:
+  activate: true
+  theme: agate
+docExpansion: list
+defaultModelsExpandDepth: 2
+defaultModelExpandDepth: 2
+tagsSorter: alpha
+operationsSorter: alpha
+supportedSubmitMethods:
+  - get
+  - post
+queryConfigEnabled: false

@@ -37,6 +37,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/use-translation';
 import { dataAccess } from '@/data';
+import { SentryTestSettingsItem } from '@/components/dev/SentryTestSettingsItem';
 import { useCurrentProfileQuery } from '@/features/profile/hooks/use-current-profile';
 import { useMyTicketStatistics } from '@/features/history/hooks/use-my-ticket-statistics';
 import { EMPTY_TICKET_STATISTICS } from '@/mock/statistics';
@@ -50,8 +51,7 @@ export default function ProfileScreen() {
   const { t } = useTranslation();
   const { user, profile, role, signOut, switchRole, isLoading } = useAuth();
   useCurrentProfileQuery(Boolean(user?.id));
-  const { data: stats = EMPTY_TICKET_STATISTICS } =
-    useMyTicketStatistics(Boolean(user?.id));
+  const { data: stats = EMPTY_TICKET_STATISTICS } = useMyTicketStatistics(Boolean(user?.id));
   const favoriteLabel = stats.favoriteOrganization.split(' ')[0] || '—';
   const preference = useThemeStore((s) => s.preference);
   const language = usePreferencesStore((s) => s.language);
@@ -91,9 +91,18 @@ export default function ProfileScreen() {
         />
 
         <Animated.View entering={FadeInDown.delay(60).duration(400)} style={styles.padded}>
-          <Card style={[styles.roleCard, { backgroundColor: theme.tints.primary.bg, borderColor: theme.tints.primary.border }]}>
-            <Text style={[styles.roleLabel, { color: theme.tints.primary.fg }]}>{t('profile.currentRole')}</Text>
-            <Text style={[styles.roleValue, { color: theme.tints.primary.fg }]}>{dataAccess.getRoleDisplayLabel(role)}</Text>
+          <Card
+            style={[
+              styles.roleCard,
+              { backgroundColor: theme.tints.primary.bg, borderColor: theme.tints.primary.border },
+            ]}
+          >
+            <Text style={[styles.roleLabel, { color: theme.tints.primary.fg }]}>
+              {t('profile.currentRole')}
+            </Text>
+            <Text style={[styles.roleValue, { color: theme.tints.primary.fg }]}>
+              {dataAccess.getRoleDisplayLabel(role)}
+            </Text>
           </Card>
         </Animated.View>
 
@@ -103,20 +112,14 @@ export default function ProfileScreen() {
               label={t('profile.statQueuesJoined')}
               value={String(stats.queuesJoined)}
             />
-            <StatisticCard
-              label={t('profile.statHoursSaved')}
-              value={String(stats.hoursSaved)}
-            />
+            <StatisticCard label={t('profile.statHoursSaved')} value={String(stats.hoursSaved)} />
           </View>
           <View style={styles.stats}>
             <StatisticCard
               label={t('profile.statAvgWait')}
               value={t('common.minutesShort', { count: stats.averageWaitingMinutes })}
             />
-            <StatisticCard
-              label={t('profile.statFavorite')}
-              value={favoriteLabel}
-            />
+            <StatisticCard label={t('profile.statFavorite')} value={favoriteLabel} />
           </View>
         </Animated.View>
 
@@ -184,8 +187,8 @@ export default function ProfileScreen() {
                 label={t('profile.switchRole')}
                 description={t('profile.switchRoleBusiness')}
                 onPress={() => void onDevSwitchRole()}
-                showDivider={false}
               />
+              <SentryTestSettingsItem showDivider={false} />
             </SettingsGroup>
           </View>
         ) : null}

@@ -11,12 +11,15 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 
-import {
-  isRetryableCode,
-  logEvent,
-  type ChatFailureCode,
-} from '../_shared/chatbot/errors.ts';
+import { isRetryableCode, logEvent, type ChatFailureCode } from '../_shared/chatbot/errors.ts';
 import { detectReplyStyle } from '../_shared/chatbot/reply-style.ts';
+import {
+  captureException,
+  flushSentry,
+  initFunctionSentry,
+  maybeHandleSentryTest,
+  shouldCaptureFailure,
+} from '../_shared/sentry.ts';
 
 const MAX_DURATION_MS = 15_000;
 const MIN_DURATION_MS = 400;
@@ -41,9 +44,7 @@ const KEYTERMS = [
   'skip',
 ];
 
-type VoiceFailureCode =
-  | ChatFailureCode
-  | 'no_speech';
+type VoiceFailureCode = ChatFailureCode | 'no_speech';
 
 type DeepgramListenResponse = {
   results?: {
@@ -72,6 +73,10 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return jsonError('invalid_data', 'Method not allowed', 405, false);
   }
+
+  initFunctionSentry('voice-transcribe');
+  const testResponse = await maybeHandleSentryTest(req, 'voice-transcribe');
+  if (testResponse) return testResponse;
 
   const requestId = crypto.randomUUID().slice(0, 8);
   const startedAt = Date.now();
@@ -151,6 +156,12 @@ Deno.serve(async (req) => {
         category: 'not_configured',
         reason: 'missing_deepgram_key',
       });
+      captureException(new Error('Deepgram API key is not configured'), {
+        functionName: 'voice-transcribe',
+        feature: 'voice',
+        provider: 'deepgram',
+        tags: { category: 'not_configured' },
+      });
       return jsonError('not_configured', USER_MESSAGE.not_configured, 503, false);
     }
 
@@ -209,7 +220,24 @@ Deno.serve(async (req) => {
         status: deepgram.status,
         role,
       });
-      return jsonError(deepgram.code, USER_MESSAGE[deepgram.code], deepgram.status, deepgram.retryable);
+      if (shouldCaptureFailure(deepgram.code)) {
+        captureException(new Error(`Deepgram STT failed (${deepgram.code})`), {
+          functionName: 'voice-transcribe',
+          feature: 'voice',
+          provider: 'deepgram',
+          tags: {
+            category: deepgram.code,
+            status: String(deepgram.status),
+          },
+          extras: { requestId, retryable: deepgram.retryable },
+        });
+      }
+      return jsonError(
+        deepgram.code,
+        USER_MESSAGE[deepgram.code],
+        deepgram.status,
+        deepgram.retryable,
+      );
     }
 
     const transcript = deepgram.transcript.trim().slice(0, MAX_TRANSCRIPT_LENGTH);
@@ -248,10 +276,21 @@ Deno.serve(async (req) => {
       category: /timeout|aborted/i.test(message) ? 'timeout' : 'unknown',
       reason: error instanceof Error ? error.name : 'unknown',
     });
+    captureException(error, {
+      functionName: 'voice-transcribe',
+      feature: 'voice',
+      provider: 'deepgram',
+      tags: {
+        category: /timeout|aborted/i.test(message) ? 'timeout' : 'unknown',
+      },
+      extras: { requestId },
+    });
     if (/timeout|aborted/i.test(message)) {
       return jsonError('timeout', USER_MESSAGE.timeout, 408, true);
     }
     return jsonError('unknown', USER_MESSAGE.unknown, 500, true);
+  } finally {
+    await flushSentry();
   }
 });
 
@@ -405,12 +444,15 @@ function mapDetectedLanguage(raw: string | undefined): 'en' | 'ur' | 'unknown' {
 function corsHeaders(): HeadersInit {
   return {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers':
-      'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   };
 }
 
-function json(payload: Record<string, unknown>, status = 200, retryAfterSeconds?: number): Response {
+function json(
+  payload: Record<string, unknown>,
+  status = 200,
+  retryAfterSeconds?: number,
+): Response {
   const headers: Record<string, string> = {
     ...(corsHeaders() as Record<string, string>),
     'Content-Type': 'application/json',

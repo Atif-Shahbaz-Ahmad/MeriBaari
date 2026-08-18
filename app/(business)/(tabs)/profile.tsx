@@ -18,6 +18,7 @@ import { Screen } from '@/components/layout/Screen';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { SettingsGroup } from '@/components/profile/SettingsGroup';
 import { SettingsItem } from '@/components/profile/SettingsItem';
+import { SentryTestSettingsItem } from '@/components/dev/SentryTestSettingsItem';
 import { Card } from '@/components/ui/Card';
 import { StatisticCard } from '@/components/ui/StatisticCard';
 import { Colors } from '@/constants/colors';
@@ -89,22 +90,25 @@ export default function BusinessProfileScreen() {
         />
 
         <Animated.View entering={FadeInDown.delay(60).duration(400)} style={styles.padded}>
-          <Card style={[styles.roleCard, { backgroundColor: theme.tints.primary.bg, borderColor: theme.tints.primary.border }]}>
-            <Text style={[styles.roleLabel, { color: theme.tints.primary.fg }]}>{t('profile.currentRole')}</Text>
-            <Text style={[styles.roleValue, { color: theme.tints.primary.fg }]}>{dataAccess.getRoleDisplayLabel(role)}</Text>
+          <Card
+            style={[
+              styles.roleCard,
+              { backgroundColor: theme.tints.primary.bg, borderColor: theme.tints.primary.border },
+            ]}
+          >
+            <Text style={[styles.roleLabel, { color: theme.tints.primary.fg }]}>
+              {t('profile.currentRole')}
+            </Text>
+            <Text style={[styles.roleValue, { color: theme.tints.primary.fg }]}>
+              {dataAccess.getRoleDisplayLabel(role)}
+            </Text>
           </Card>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.padded}>
           <View style={styles.stats}>
-            <StatisticCard
-              label={t('profile.activeQueues')}
-              value={String(activeQueueCount)}
-            />
-            <StatisticCard
-              label={t('profile.servedToday')}
-              value={String(servedToday)}
-            />
+            <StatisticCard label={t('profile.activeQueues')} value={String(activeQueueCount)} />
+            <StatisticCard label={t('profile.servedToday')} value={String(servedToday)} />
           </View>
         </Animated.View>
 
@@ -113,14 +117,8 @@ export default function BusinessProfileScreen() {
             <SettingsItem
               icon={<Building2 size={18} color={Colors.primary} />}
               label={t('profile.myOrganization')}
-              description={
-                organization
-                  ? organization.name
-                  : t('profile.myOrganizationHint')
-              }
-              onPress={
-                organization ? pushEditOrganization : pushCreateOrganization
-              }
+              description={organization ? organization.name : t('profile.myOrganizationHint')}
+              onPress={organization ? pushEditOrganization : pushCreateOrganization}
             />
             <SettingsItem
               icon={<History size={18} color={Colors.primary} />}
@@ -172,8 +170,8 @@ export default function BusinessProfileScreen() {
                 label={t('profile.switchRole')}
                 description={t('profile.switchRoleCustomer')}
                 onPress={() => void onDevSwitchRole()}
-                showDivider={false}
               />
+              <SentryTestSettingsItem showDivider={false} />
             </SettingsGroup>
           </View>
         ) : null}

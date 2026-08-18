@@ -1,5 +1,7 @@
+import './instrument';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import * as Sentry from '@sentry/react';
 
 import '@fontsource/plus-jakarta-sans/400.css';
 import '@fontsource/plus-jakarta-sans/500.css';
@@ -22,12 +24,17 @@ async function boot() {
     const root = document.getElementById('root');
     if (!root) throw new Error('Root element #root was not found.');
     root.setAttribute('data-booted', 'true');
-    createRoot(root).render(
+    createRoot(root, {
+      onUncaughtError: Sentry.reactErrorHandler(),
+      onCaughtError: Sentry.reactErrorHandler(),
+      onRecoverableError: Sentry.reactErrorHandler(),
+    }).render(
       <StrictMode>
         <App />
       </StrictMode>,
     );
   } catch (error) {
+    Sentry.captureException(error);
     showBootError(error);
     throw error;
   }

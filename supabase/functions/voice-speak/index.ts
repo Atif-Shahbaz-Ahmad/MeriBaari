@@ -11,14 +11,17 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 
-import {
-  isRetryableCode,
-  logEvent,
-  type ChatFailureCode,
-} from '../_shared/chatbot/errors.ts';
+import { isRetryableCode, logEvent, type ChatFailureCode } from '../_shared/chatbot/errors.ts';
 import { detectReplyStyle, type ReplyStyle } from '../_shared/chatbot/reply-style.ts';
 import { splitUrduWithEnglish, transliterateRomanUrdu } from './roman-to-urdu.ts';
 import { toSpeakableText, VOICE_MAX_RAW_CHARS } from './speakable-text.ts';
+import {
+  captureException,
+  flushSentry,
+  initFunctionSentry,
+  maybeHandleSentryTest,
+  shouldCaptureFailure,
+} from '../_shared/sentry.ts';
 
 const SPEAK_TIMEOUT_MS = 15_000;
 const RATE_WINDOW_MS = 60_000;
@@ -44,6 +47,10 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return jsonError('invalid_data', 'Method not allowed', 405, false);
   }
+
+  initFunctionSentry('voice-speak');
+  const testResponse = await maybeHandleSentryTest(req, 'voice-speak');
+  if (testResponse) return testResponse;
 
   const requestId = crypto.randomUUID().slice(0, 8);
   const startedAt = Date.now();
@@ -146,10 +153,18 @@ Deno.serve(async (req) => {
 
     const replyStyle = parseReplyStyle(body.replyStyle) ?? detectReplyStyle(speakable);
 
-    let audio: SpeakSuccess | { kind: 'error'; code: VoiceSpeakFailureCode; status: number; retryable: boolean };
+    let audio:
+      | SpeakSuccess
+      | { kind: 'error'; code: VoiceSpeakFailureCode; status: number; retryable: boolean };
 
     if (replyStyle === 'english') {
       if (!deepgramKey) {
+        captureException(new Error('Deepgram TTS key is not configured'), {
+          functionName: 'voice-speak',
+          feature: 'voice',
+          provider: 'deepgram',
+          tags: { category: 'not_configured' },
+        });
         return jsonError('not_configured', USER_MESSAGE.not_configured, 503, false);
       }
       audio = await speakDeepgram({
@@ -160,6 +175,12 @@ Deno.serve(async (req) => {
       });
     } else if (replyStyle === 'urdu_script') {
       if (!azureKey || !azureRegion) {
+        captureException(new Error('Azure Speech is not configured'), {
+          functionName: 'voice-speak',
+          feature: 'voice',
+          provider: 'azure',
+          tags: { category: 'not_configured' },
+        });
         return jsonError('not_configured', USER_MESSAGE.not_configured, 503, false);
       }
       audio = await speakAzure({
@@ -171,6 +192,12 @@ Deno.serve(async (req) => {
       });
     } else {
       if (!azureKey || !azureRegion) {
+        captureException(new Error('Azure Speech is not configured'), {
+          functionName: 'voice-speak',
+          feature: 'voice',
+          provider: 'azure',
+          tags: { category: 'not_configured' },
+        });
         return jsonError('not_configured', USER_MESSAGE.not_configured, 503, false);
       }
       const converted = transliterateRomanUrdu(speakable);
@@ -203,6 +230,19 @@ Deno.serve(async (req) => {
         role,
         replyStyle,
       });
+      if (shouldCaptureFailure(audio.code)) {
+        captureException(new Error(`TTS failed (${audio.code})`), {
+          functionName: 'voice-speak',
+          feature: 'voice',
+          provider: replyStyle === 'english' ? 'deepgram' : 'azure',
+          tags: {
+            category: audio.code,
+            status: String(audio.status),
+            replyStyle,
+          },
+          extras: { requestId, retryable: audio.retryable },
+        });
+      }
       return jsonError(audio.code, USER_MESSAGE[audio.code], audio.status, audio.retryable);
     }
 
@@ -228,10 +268,20 @@ Deno.serve(async (req) => {
       category: /timeout|aborted/i.test(message) ? 'timeout' : 'unknown',
       reason: error instanceof Error ? error.name : 'unknown',
     });
+    captureException(error, {
+      functionName: 'voice-speak',
+      feature: 'voice',
+      tags: {
+        category: /timeout|aborted/i.test(message) ? 'timeout' : 'unknown',
+      },
+      extras: { requestId },
+    });
     if (/timeout|aborted/i.test(message)) {
       return jsonError('timeout', USER_MESSAGE.timeout, 408, true);
     }
     return jsonError('unknown', USER_MESSAGE.unknown, 500, true);
+  } finally {
+    await flushSentry();
   }
 });
 
@@ -243,9 +293,9 @@ const USER_MESSAGE: Record<VoiceSpeakFailureCode, string> = {
   network: 'Something went wrong while connecting. Please try again.',
   not_configured: 'Voice playback is not available yet.',
   rate_limited: 'Voice is temporarily busy. Please try again in a moment.',
-  unavailable: 'Voice playback isn\'t available right now.',
-  unknown: 'Voice playback isn\'t available right now.',
-  tts_unavailable: 'Voice playback isn\'t available right now.',
+  unavailable: "Voice playback isn't available right now.",
+  unknown: "Voice playback isn't available right now.",
+  tts_unavailable: "Voice playback isn't available right now.",
 };
 
 function parseReplyStyle(raw: unknown): ReplyStyle | null {
@@ -270,7 +320,9 @@ async function speakDeepgram(options: {
   model: string;
   text: string;
   requestId: string;
-}): Promise<SpeakSuccess | { kind: 'error'; code: VoiceSpeakFailureCode; status: number; retryable: boolean }> {
+}): Promise<
+  SpeakSuccess | { kind: 'error'; code: VoiceSpeakFailureCode; status: number; retryable: boolean }
+> {
   const params = new URLSearchParams({
     model: options.model,
     encoding: 'mp3',
@@ -290,7 +342,10 @@ async function speakDeepgram(options: {
     });
 
     if (response.status === 401 || response.status === 403) {
-      logEvent('deepgram_tts_auth_failed', { requestId: options.requestId, status: response.status });
+      logEvent('deepgram_tts_auth_failed', {
+        requestId: options.requestId,
+        status: response.status,
+      });
       return { kind: 'error', code: 'not_configured', status: 503, retryable: false };
     }
     if (response.status === 429) {
@@ -334,7 +389,9 @@ async function speakAzure(options: {
   voice: string;
   parts: ReturnType<typeof splitUrduWithEnglish>;
   requestId: string;
-}): Promise<SpeakSuccess | { kind: 'error'; code: VoiceSpeakFailureCode; status: number; retryable: boolean }> {
+}): Promise<
+  SpeakSuccess | { kind: 'error'; code: VoiceSpeakFailureCode; status: number; retryable: boolean }
+> {
   const ssml = toSsml(options.voice, options.parts);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), SPEAK_TIMEOUT_MS);
@@ -430,12 +487,15 @@ function encodeBase64(bytes: Uint8Array): string {
 function corsHeaders(): HeadersInit {
   return {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers':
-      'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   };
 }
 
-function json(payload: Record<string, unknown>, status = 200, retryAfterSeconds?: number): Response {
+function json(
+  payload: Record<string, unknown>,
+  status = 200,
+  retryAfterSeconds?: number,
+): Response {
   const headers: Record<string, string> = {
     ...(corsHeaders() as Record<string, string>),
     'Content-Type': 'application/json',

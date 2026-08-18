@@ -24,12 +24,14 @@ import {
   executeJoinQueue,
   parseConfirmedAction,
 } from './actions.ts';
-import type {
-  ChatLanguage,
-  ChatLocation,
-  ChatTurn,
-  UiPayload,
-} from './types.ts';
+import type { ChatLanguage, ChatLocation, ChatTurn, UiPayload } from './types.ts';
+import {
+  captureException,
+  flushSentry,
+  initFunctionSentry,
+  maybeHandleSentryTest,
+  shouldCaptureFailure,
+} from '../_shared/sentry.ts';
 
 const MAX_INPUT_LENGTH = 500;
 const MAX_TURNS = 12;
@@ -54,6 +56,10 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return jsonError('invalid_data', 'Method not allowed', 405);
   }
+
+  initFunctionSentry('customer-chatbot');
+  const testResponse = await maybeHandleSentryTest(req, 'customer-chatbot');
+  if (testResponse) return testResponse;
 
   const requestId = crypto.randomUUID().slice(0, 8);
   const startedAt = Date.now();
@@ -195,7 +201,10 @@ Deno.serve(async (req) => {
         history: ui.history,
         locationRequired: Boolean(ui.locationRequired),
         pendingAction: ui.pendingAction ?? null,
-        actionResult: ui.actionResult ?? { ok, code: typeof result.error === 'string' ? result.error : undefined },
+        actionResult: ui.actionResult ?? {
+          ok,
+          code: typeof result.error === 'string' ? result.error : undefined,
+        },
       });
     }
 
@@ -206,6 +215,12 @@ Deno.serve(async (req) => {
         category: 'not_configured',
         reason: 'missing_gemini_key',
         model: geminiModel,
+      });
+      captureException(new Error('Gemini API key is not configured'), {
+        functionName: 'customer-chatbot',
+        feature: 'chatbot',
+        provider: 'gemini',
+        tags: { category: 'not_configured' },
       });
       return jsonError('not_configured', USER_MESSAGE.not_configured, 503, false);
     }
@@ -259,6 +274,27 @@ Deno.serve(async (req) => {
           retryAfterSeconds: mapped.retryAfterSeconds ?? null,
           reason: error instanceof Error ? error.name : 'unknown',
         });
+        if (shouldCaptureFailure(mapped.code)) {
+          captureException(error, {
+            functionName: 'customer-chatbot',
+            feature: 'chatbot',
+            provider: error instanceof GeminiRequestError ? 'gemini' : undefined,
+            tags: {
+              category: mapped.code,
+              status: String(mapped.httpStatus),
+              ...(error instanceof GeminiRequestError
+                ? {
+                    geminiCategory: error.category,
+                    geminiStatus: String(error.status ?? mapped.httpStatus),
+                  }
+                : {}),
+            },
+            extras: {
+              retryable: mapped.retryable,
+              requestId,
+            },
+          });
+        }
         return {
           status: mapped.httpStatus,
           body: {
@@ -285,6 +321,18 @@ Deno.serve(async (req) => {
       model: geminiModel,
       reason: error instanceof Error ? error.name : 'unknown',
     });
+    if (shouldCaptureFailure(mapped.code)) {
+      captureException(error, {
+        functionName: 'customer-chatbot',
+        feature: 'chatbot',
+        provider: error instanceof GeminiRequestError ? 'gemini' : undefined,
+        tags: {
+          category: mapped.code,
+          status: String(mapped.httpStatus),
+        },
+        extras: { requestId },
+      });
+    }
     return jsonError(
       mapped.code,
       mapped.message,
@@ -292,6 +340,8 @@ Deno.serve(async (req) => {
       mapped.retryable,
       mapped.retryAfterSeconds,
     );
+  } finally {
+    await flushSentry();
   }
 });
 
@@ -318,9 +368,7 @@ function mapCaughtError(error: unknown): AssistantError {
   return new AssistantError('unknown', USER_MESSAGE.unknown, 500, true);
 }
 
-function geminiCategoryToCode(
-  category: GeminiRequestError['category'],
-): ChatFailureCode {
+function geminiCategoryToCode(category: GeminiRequestError['category']): ChatFailureCode {
   if (category === 'timeout') return 'timeout';
   if (category === 'rate_limited') return 'rate_limited';
   if (category === 'network') return 'network';
@@ -370,8 +418,7 @@ function normalizeLocation(raw: ChatLocation | null | undefined): ChatLocation |
 function corsHeaders(): HeadersInit {
   return {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers':
-      'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   };
 }
 

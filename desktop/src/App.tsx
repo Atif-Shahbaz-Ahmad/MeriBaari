@@ -46,6 +46,7 @@ import JoinConfirmPage from '@web-app/(customer)/customer/join/[orgId]/confirm/[
 import AdminLayout from '@web-app/admin/layout';
 import AdminPage from '@web-app/admin/page';
 import AdminBusinessPage from '@web-app/admin/businesses/[id]/page';
+import SentryTestPage from './pages/SentryTestPage';
 
 function AdminLayoutRoute() {
   return (
@@ -62,6 +63,9 @@ export function App() {
         <QueueActionsProvider>
           <Routes>
             <Route path="/" element={<WelcomePage />} />
+            {import.meta.env.DEV ? (
+              <Route path="/dev/sentry-test" element={<SentryTestPage />} />
+            ) : null}
             <Route path="/businesses" element={<BusinessesPage />} />
             <Route path="/businesses/:id" element={<PublicBusinessPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />

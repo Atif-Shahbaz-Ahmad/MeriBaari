@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from 'react';
 import { getContainer } from '@/data';
 import type { ChatSpeakable } from '@/domain/models/chatbot';
 import type { VoiceSessionStatus } from '@/domain/models/voice';
+import { toVoiceError } from '@/domain/errors/voice-error';
+import { reportError } from '@/lib/monitoring';
 
 export function useWebVoice() {
   const [status, setStatus] = useState<VoiceSessionStatus>('idle');
@@ -22,23 +24,38 @@ export function useWebVoice() {
 
   async function startListening() {
     setError(null);
-    const permission =
-      await getContainer().microphonePermissionService.requestPermission();
+    const permission = await getContainer().microphonePermissionService.requestPermission();
     if (permission !== 'granted') {
       setStatus('permission_denied');
+      reportError(new Error('Microphone permission denied'), {
+        feature: 'voice',
+        provider: 'client',
+        level: 'warning',
+        tags: { code: 'permission_denied' },
+      });
       return;
     }
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    streamRef.current = stream;
-    const recorder = new MediaRecorder(stream);
-    chunksRef.current = [];
-    recorder.ondataavailable = (event) => {
-      if (event.data.size > 0) chunksRef.current.push(event.data);
-    };
-    recorder.start();
-    recorderRef.current = recorder;
-    startedAt.current = Date.now();
-    setStatus('listening');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const recorder = new MediaRecorder(stream);
+      chunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) chunksRef.current.push(event.data);
+      };
+      recorder.start();
+      recorderRef.current = recorder;
+      startedAt.current = Date.now();
+      setStatus('listening');
+    } catch (e) {
+      setStatus('error');
+      setError(e instanceof Error ? e.message : 'Microphone failed');
+      reportError(toVoiceError(e), {
+        feature: 'voice',
+        provider: 'client',
+        tags: { code: 'unavailable' },
+      });
+    }
   }
 
   async function stopListening(): Promise<string | null> {
@@ -68,8 +85,16 @@ export function useWebVoice() {
       setStatus('idle');
       return result.transcript;
     } catch (e) {
+      const mapped = toVoiceError(e);
       setStatus('error');
       setError(e instanceof Error ? e.message : 'Voice failed');
+      if (mapped.code !== 'no_speech') {
+        reportError(mapped, {
+          feature: 'voice',
+          provider: 'deepgram',
+          tags: { code: mapped.code },
+        });
+      }
       return null;
     }
   }
@@ -86,14 +111,18 @@ export function useWebVoice() {
         setStatus('error');
         return;
       }
-      const audio = new Audio(
-        `data:${result.mimeType};base64,${result.audioBase64}`,
-      );
+      const audio = new Audio(`data:${result.mimeType};base64,${result.audioBase64}`);
       await audio.play();
       setStatus('idle');
     } catch (e) {
+      const mapped = toVoiceError(e);
       setStatus('error');
       setError(e instanceof Error ? e.message : 'Playback failed');
+      reportError(mapped, {
+        feature: 'voice',
+        provider: 'tts',
+        tags: { code: mapped.code },
+      });
     }
   }
 
