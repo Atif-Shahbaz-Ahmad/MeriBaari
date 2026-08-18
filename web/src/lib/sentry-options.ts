@@ -2,6 +2,8 @@ import { resolveSentryEnvironment, type SentryEnvironment } from '@/lib/monitori
 import { sanitizeSentryEvent } from '@/lib/sentry-sanitize';
 
 export function getWebSentryDsn(): string {
+  // NEXT_PUBLIC_SENTRY_DSN must stay a static member access so the client
+  // bundle inlines it at build time. SENTRY_DSN is a server-only fallback.
   return process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN || '';
 }
 

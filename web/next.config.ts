@@ -90,7 +90,6 @@ const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
-const sentryDsn = process.env.NEXT_PUBLIC_SENTRY_DSN || '';
 const sentryRelease =
   process.env.NEXT_PUBLIC_SENTRY_RELEASE ||
   process.env.SENTRY_RELEASE ||
@@ -117,12 +116,15 @@ const nextConfig: NextConfig = {
     },
   },
   env: {
+    // Map Expo-named Supabase vars for the browser. Do NOT reassign
+    // NEXT_PUBLIC_SENTRY_DSN here: `env` is DefinePlugin-inlined, and
+    // `process.env.NEXT_PUBLIC_SENTRY_DSN || ''` stamps "" into the client
+    // bundle even when Vercel has the real DSN at runtime (server-only).
     NEXT_PUBLIC_SUPABASE_URL: supabaseUrl,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: supabaseAnonKey,
     EXPO_PUBLIC_SUPABASE_URL: supabaseUrl,
     EXPO_PUBLIC_SUPABASE_ANON_KEY: supabaseAnonKey,
-    NEXT_PUBLIC_SENTRY_DSN: sentryDsn,
-    NEXT_PUBLIC_SENTRY_RELEASE: sentryRelease,
+    ...(sentryRelease ? { NEXT_PUBLIC_SENTRY_RELEASE: sentryRelease } : {}),
     ...(process.env.VERCEL_ENV ? { NEXT_PUBLIC_VERCEL_ENV: process.env.VERCEL_ENV } : {}),
   },
   webpack: (config) => {

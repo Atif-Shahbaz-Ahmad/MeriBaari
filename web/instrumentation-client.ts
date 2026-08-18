@@ -3,7 +3,8 @@ import * as Sentry from '@sentry/nextjs';
 import { registerErrorReporter, setErrorReportingEnabled } from '@/lib/monitoring';
 import { getWebSentryOptions } from './src/lib/sentry-options';
 
-const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN || '';
+// Static member access so Next.js inlines this into the browser bundle at build time.
+const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
 const options = getWebSentryOptions();
 
 Sentry.init({
