@@ -6,7 +6,7 @@ import { getAuthErrorMessage } from '@/domain/errors/auth-error';
 import { isSelectableRole, normalizeRole } from '@/features/auth/roles';
 import { signUpSchema } from '@/features/auth/schemas';
 import { destinationForRole, webAuthCallbackUrl } from '@web/lib/auth-paths';
-import { isPublicSupabaseConfigured } from '@web/lib/supabase-env';
+import { supabaseAuthConfigError } from '@web/lib/supabase-env';
 import { createSupabaseServerClient } from '@web/lib/supabase-server';
 
 import type { AuthFormState } from '../login/actions';
@@ -28,9 +28,8 @@ export async function signupAction(
   _prev: AuthFormState,
   formData: FormData,
 ): Promise<AuthFormState> {
-  if (!isPublicSupabaseConfigured()) {
-    return { error: 'Authentication is not configured.' };
-  }
+  const configError = supabaseAuthConfigError();
+  if (configError) return { error: configError };
 
   const parsed = signUpSchema.safeParse({
     fullName: String(formData.get('fullName') ?? ''),

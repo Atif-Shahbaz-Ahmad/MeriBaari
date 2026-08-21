@@ -6,7 +6,7 @@ import { getAuthErrorMessage } from '@/domain/errors/auth-error';
 import { normalizeRole } from '@/features/auth/roles';
 import { loginSchema } from '@/features/auth/schemas';
 import { destinationForRole } from '@web/lib/auth-paths';
-import { isPublicSupabaseConfigured } from '@web/lib/supabase-env';
+import { supabaseAuthConfigError } from '@web/lib/supabase-env';
 import { createSupabaseServerClient } from '@web/lib/supabase-server';
 
 export type AuthFormState = {
@@ -31,9 +31,8 @@ export async function loginAction(
   _prev: AuthFormState,
   formData: FormData,
 ): Promise<AuthFormState> {
-  if (!isPublicSupabaseConfigured()) {
-    return { error: 'Authentication is not configured.' };
-  }
+  const configError = supabaseAuthConfigError();
+  if (configError) return { error: configError };
 
   const parsed = loginSchema.safeParse({
     email: String(formData.get('email') ?? '').trim(),

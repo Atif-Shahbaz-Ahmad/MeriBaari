@@ -3,8 +3,7 @@ import { existsSync, readFileSync } from 'fs';
 import path from 'path';
 import { withSentryConfig } from '@sentry/nextjs';
 
-function loadParentEnv() {
-  const envPath = path.resolve(__dirname, '../.env');
+function loadEnvFile(envPath: string) {
   if (!existsSync(envPath)) return;
   for (const raw of readFileSync(envPath, 'utf8').split(/\r?\n/)) {
     const line = raw.trim();
@@ -21,6 +20,12 @@ function loadParentEnv() {
     }
     if (!process.env[key]) process.env[key] = value;
   }
+}
+
+function loadParentEnv() {
+  loadEnvFile(path.resolve(__dirname, '../.env'));
+  loadEnvFile(path.resolve(__dirname, '.env.production'));
+  loadEnvFile(path.resolve(__dirname, '.env'));
 }
 
 loadParentEnv();
@@ -103,6 +108,12 @@ const sentryRelease =
   process.env.NEXT_PUBLIC_SENTRY_RELEASE ||
   process.env.SENTRY_RELEASE ||
   (process.env.VERCEL_GIT_COMMIT_SHA ? `meribaari-web@${process.env.VERCEL_GIT_COMMIT_SHA}` : '');
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn(
+    '[meribaari-web] Supabase URL/key missing at build time. Login will fail until NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set.',
+  );
+}
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
