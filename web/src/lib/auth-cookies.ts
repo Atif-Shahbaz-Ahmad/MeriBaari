@@ -43,3 +43,7 @@ export function applyCookies(
     setCookie(name, value, nextCookieOptions(options));
   }
 }
+
+export function isSupabaseAuthCookie(name: string) {
+  return name.startsWith('sb-') || name.includes('supabase') || name.includes('auth-token');
+}

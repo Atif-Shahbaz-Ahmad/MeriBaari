@@ -3,6 +3,7 @@
 import { usePreferencesStore } from '@/store/preferences-store';
 import { useThemeStore } from '@/store/theme-store';
 import { LANGUAGE_OPTIONS, THEME_OPTIONS } from '@/mock/preferences';
+import { LogoutButton } from '@web/components/LogoutButton';
 import { Button, Card } from '@web/components/ui';
 import { useTranslation } from '@/hooks/use-translation';
 import Link from 'next/link';
@@ -52,6 +53,7 @@ export default function BusinessSettingsPage() {
           {t('profile.privacyBusinessTitle')}
         </Link>
       </Card>
+      <LogoutButton variant="danger">{t('common.signOut')}</LogoutButton>
     </div>
   );
 }

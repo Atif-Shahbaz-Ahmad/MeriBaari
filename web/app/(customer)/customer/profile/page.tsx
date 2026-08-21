@@ -5,6 +5,7 @@ import { useColorScheme, useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/use-translation';
 import { usePreferencesStore } from '@/store/preferences-store';
 import { useThemeStore } from '@/store/theme-store';
+import { LogoutButton } from '@web/components/LogoutButton';
 import { Button, Card, Input } from '@web/components/ui';
 import { LANGUAGE_OPTIONS, THEME_OPTIONS } from '@/mock/preferences';
 import { useState } from 'react';
@@ -12,7 +13,7 @@ import Link from 'next/link';
 
 export default function CustomerProfilePage() {
   const { t } = useTranslation();
-  const { profile, updateProfile, signOut, isLoading } = useAuth();
+  const { profile, updateProfile, isLoading } = useAuth();
   const language = usePreferencesStore((s) => s.language);
   const setLanguage = usePreferencesStore((s) => s.setLanguage);
   const preference = useThemeStore((s) => s.preference);
@@ -73,9 +74,7 @@ export default function CustomerProfilePage() {
           {t('profile.privacyBusinessTitle')}
         </Link>
       </Card>
-      <Button variant="danger" onClick={() => void signOut()}>
-        {t('common.signOut')}
-      </Button>
+      <LogoutButton variant="danger">{t('common.signOut')}</LogoutButton>
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { HeroFallbackArt } from '@web/components/HeroFallbackArt';
 
 /**
  * Two-pane shell: image left, content right.
- * Inset 25% from the viewport on desktop so the hero and auth form fit on screen.
+ * Occupies 80% of the viewport (10% blank margin on each side) with 25% corner radius.
  * Drop any photo in `web/public/` as `hero.jpg` (or png/webp/svg/…).
  */
 export function SplitHeroLayout({
@@ -16,7 +16,7 @@ export function SplitHeroLayout({
 }) {
   return (
     <main className="relative min-h-dvh bg-surface text-ink">
-      <div className="fixed inset-4 flex flex-col overflow-hidden rounded-3xl bg-surface-card shadow-2xl md:inset-[25%] md:flex-row">
+      <div className="fixed inset-[10%] flex flex-col overflow-hidden rounded-[25%] bg-surface-card shadow-2xl md:flex-row">
         <div className="relative h-36 w-full shrink-0 overflow-hidden sm:h-44 md:h-full md:w-1/2">
           {imageSrc ? (
             // eslint-disable-next-line @next/next/no-img-element

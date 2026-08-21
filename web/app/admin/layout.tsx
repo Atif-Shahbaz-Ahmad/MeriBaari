@@ -7,12 +7,12 @@ import { useEffect } from 'react';
 
 import { useAuth } from '@/hooks/use-auth';
 import { useTranslation } from '@/hooks/use-translation';
-import { Button } from '@web/components/ui';
+import { LogoutButton } from '@web/components/LogoutButton';
 
 export default function AdminLayout({ children }: PropsWithChildren) {
   const { t } = useTranslation();
   const router = useRouter();
-  const { isInitialized, isAuthenticated, role, isLoading, signOut } = useAuth();
+  const { isInitialized, isAuthenticated, role, isLoading } = useAuth();
 
   useEffect(() => {
     if (!isInitialized || isLoading) return;
@@ -48,9 +48,7 @@ export default function AdminLayout({ children }: PropsWithChildren) {
           <Link href="/admin" className="font-semibold">
             {t('admin.dashboard.title')}
           </Link>
-          <Button variant="ghost" onClick={() => void signOut()}>
-            {t('common.signOut')}
-          </Button>
+          <LogoutButton variant="ghost">{t('common.signOut')}</LogoutButton>
         </div>
       </header>
       <div className="mx-auto max-w-5xl px-4 py-8">{children}</div>

@@ -27,7 +27,7 @@ import { useTranslation } from '@/hooks/use-translation';
 import { useUnreadNotificationCount } from '@/features/notifications/hooks/use-notifications';
 import { ConnectionBanner } from '@web/components/ConnectionBanner';
 import { Logo } from '@web/components/Logo';
-import { Button } from '@web/components/ui';
+import { LogoutButton } from '@web/components/LogoutButton';
 import { cn } from '@web/lib/cn';
 
 type NavItem = { href: string; label: string; icon: typeof Home };
@@ -40,7 +40,7 @@ export function AppShell({
   children: ReactNode;
 }) {
   const { t } = useTranslation();
-  const { user, signOut, isLoading } = useAuth();
+  const { user } = useAuth();
   const scheme = useColorScheme();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -109,6 +109,9 @@ export function AppShell({
               onClick={() => setOpen(false)}
             />
           ))}
+          <LogoutButton className="mt-3 w-full" variant="ghost">
+            {t('common.signOut')}
+          </LogoutButton>
         </nav>
       ) : null}
 
@@ -130,14 +133,9 @@ export function AppShell({
               />
             ))}
           </nav>
-          <Button
-            className="mt-6 w-full"
-            variant="ghost"
-            disabled={isLoading}
-            onClick={() => void signOut()}
-          >
+          <LogoutButton className="mt-6 w-full" variant="ghost">
             {t('common.signOut')}
-          </Button>
+          </LogoutButton>
         </aside>
         <main id="main" className="min-w-0 flex-1 p-4 md:p-6 lg:p-8">
           {children}
