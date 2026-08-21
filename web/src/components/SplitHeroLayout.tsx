@@ -16,8 +16,8 @@ export function SplitHeroLayout({
 }) {
   return (
     <main className="relative min-h-dvh bg-surface text-ink">
-      <div className="fixed inset-[10%] flex flex-col overflow-hidden rounded-[25%] bg-surface-card shadow-2xl md:flex-row">
-        <div className="relative h-36 w-full shrink-0 overflow-hidden sm:h-44 md:h-full md:w-1/2">
+      <div className="fixed inset-[5%] flex flex-col overflow-hidden rounded-[2%] bg-surface-card shadow-2xl md:flex-row">
+        <div className="relative h-36 w-full shrink-0 overflow-hidden sm:h-44 md:h-full md:w-2/5">
           {imageSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
