@@ -38,7 +38,9 @@ export function useAppBootstrap() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    void handleAuthUrl(window.location.href).catch(() => undefined);
+    const href = window.location.href;
+    if (!/[?&#](?:code|access_token|token_hash|error)=/.test(href)) return;
+    void handleAuthUrl(href).catch(() => undefined);
   }, [handleAuthUrl]);
 
   const isReady =
