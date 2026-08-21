@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useActionState } from 'react';
+import { useActionState, useEffect } from 'react';
 
 import { useTranslation } from '@/hooks/use-translation';
 import { AuthTabs } from '@web/components/AuthTabs';
@@ -20,12 +20,17 @@ export function LoginForm() {
   const next = search.get('next') ?? '';
   const [state, formAction, pending] = useActionState(loginAction, initialState);
 
+  useEffect(() => {
+    if (!state.redirectTo) return;
+    window.location.assign(state.redirectTo);
+  }, [state.redirectTo]);
+
   return (
     <>
       <Logo />
-      <h1 className="mt-5 text-3xl font-bold tracking-tight">Welcome back</h1>
+      <h1 className="mt-4 text-2xl font-bold tracking-tight md:text-3xl">Welcome back</h1>
       <AuthTabs active="login" />
-      <form action={formAction} className="mt-6 space-y-5">
+      <form action={formAction} className="mt-4 space-y-4">
         <input type="hidden" name="next" value={next} />
         <UnderlineField
           label="Enter your email"
@@ -54,7 +59,7 @@ export function LoginForm() {
           </p>
         ) : null}
         <Button className="w-full rounded-lg py-3" type="submit" disabled={pending}>
-          {pending ? 'Signing in…' : t('auth.login.cta')}
+          {pending || state.redirectTo ? 'Signing in…' : t('auth.login.cta')}
         </Button>
       </form>
     </>

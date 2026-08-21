@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState } from 'react';
+import { useActionState, useEffect } from 'react';
 
 import { useTranslation } from '@/hooks/use-translation';
 import { AuthTabs } from '@web/components/AuthTabs';
@@ -18,12 +18,17 @@ export function SignupForm() {
   const { t } = useTranslation();
   const [state, formAction, pending] = useActionState(signupAction, initialState);
 
+  useEffect(() => {
+    if (!state.redirectTo) return;
+    window.location.assign(state.redirectTo);
+  }, [state.redirectTo]);
+
   return (
     <>
       <Logo />
-      <h1 className="mt-5 text-3xl font-bold tracking-tight">Create account</h1>
+      <h1 className="mt-4 text-2xl font-bold tracking-tight md:text-3xl">Create account</h1>
       <AuthTabs active="signup" />
-      <form action={formAction} className="mt-5 space-y-4">
+      <form action={formAction} className="mt-4 space-y-3">
         <UnderlineField
           label="Your name"
           name="fullName"
@@ -78,7 +83,7 @@ export function SignupForm() {
           </p>
         ) : null}
         <Button className="w-full rounded-lg py-3" type="submit" disabled={pending}>
-          {pending ? 'Creating account…' : t('auth.signup.cta')}
+          {pending || state.redirectTo ? 'Creating account…' : t('auth.signup.cta')}
         </Button>
       </form>
     </>

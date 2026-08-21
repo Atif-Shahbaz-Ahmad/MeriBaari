@@ -1,6 +1,6 @@
 'use server';
 
-import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
 
 import { getAuthErrorMessage } from '@/domain/errors/auth-error';
 import { isSelectableRole, normalizeRole } from '@/features/auth/roles';
@@ -76,5 +76,6 @@ export async function signupAction(
       : role,
   );
 
-  redirect(destinationForRole(profileRole ?? role));
+  revalidatePath('/', 'layout');
+  return { error: null, redirectTo: destinationForRole(profileRole ?? role) };
 }

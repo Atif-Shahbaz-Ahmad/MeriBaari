@@ -1,6 +1,6 @@
-import { NextResponse, type NextRequest } from 'next/server';
+import { type NextRequest } from 'next/server';
 
-import { updateSession } from './src/lib/supabase-middleware';
+import { redirectWithSessionCookies, updateSession } from './src/lib/supabase-middleware';
 
 const AUTH_PATHS = [
   '/login',
@@ -31,50 +31,68 @@ export async function middleware(request: NextRequest) {
   if ((isCustomer || isBusinessApp || isAdminApp) && !user) {
     const login = new URL('/login', request.url);
     login.searchParams.set('next', pathname);
-    return NextResponse.redirect(login);
+    return redirectWithSessionCookies(login, response);
   }
 
   if (isAdminApp && role && role !== 'admin') {
     if (role === 'business') {
-      return NextResponse.redirect(new URL('/business/dashboard', request.url));
+      return redirectWithSessionCookies(
+        new URL('/business/dashboard', request.url),
+        response,
+      );
     }
     if (role === 'customer') {
-      return NextResponse.redirect(new URL('/customer/home', request.url));
+      return redirectWithSessionCookies(
+        new URL('/customer/home', request.url),
+        response,
+      );
     }
-    return NextResponse.redirect(new URL('/role-select', request.url));
+    return redirectWithSessionCookies(new URL('/role-select', request.url), response);
   }
 
   if (isCustomer && role && role !== 'customer') {
     if (role === 'business') {
-      return NextResponse.redirect(new URL('/business/dashboard', request.url));
+      return redirectWithSessionCookies(
+        new URL('/business/dashboard', request.url),
+        response,
+      );
     }
     if (role === 'admin') {
-      return NextResponse.redirect(new URL('/admin', request.url));
+      return redirectWithSessionCookies(new URL('/admin', request.url), response);
     }
-    return NextResponse.redirect(new URL('/role-select', request.url));
+    return redirectWithSessionCookies(new URL('/role-select', request.url), response);
   }
 
   if (isBusinessApp && role && role !== 'business') {
     if (role === 'customer') {
-      return NextResponse.redirect(new URL('/customer/home', request.url));
+      return redirectWithSessionCookies(
+        new URL('/customer/home', request.url),
+        response,
+      );
     }
     if (role === 'admin') {
-      return NextResponse.redirect(new URL('/admin', request.url));
+      return redirectWithSessionCookies(new URL('/admin', request.url), response);
     }
-    return NextResponse.redirect(new URL('/role-select', request.url));
+    return redirectWithSessionCookies(new URL('/role-select', request.url), response);
   }
 
   if (user && isAuthPath(pathname) && pathname !== '/auth/callback' && pathname !== '/role-select') {
     if (role === 'customer') {
-      return NextResponse.redirect(new URL('/customer/home', request.url));
+      return redirectWithSessionCookies(
+        new URL('/customer/home', request.url),
+        response,
+      );
     }
     if (role === 'business') {
-      return NextResponse.redirect(new URL('/business/dashboard', request.url));
+      return redirectWithSessionCookies(
+        new URL('/business/dashboard', request.url),
+        response,
+      );
     }
     if (role === 'admin') {
-      return NextResponse.redirect(new URL('/admin', request.url));
+      return redirectWithSessionCookies(new URL('/admin', request.url), response);
     }
-    return NextResponse.redirect(new URL('/role-select', request.url));
+    return redirectWithSessionCookies(new URL('/role-select', request.url), response);
   }
 
   return response;

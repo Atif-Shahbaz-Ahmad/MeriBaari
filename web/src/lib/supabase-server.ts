@@ -1,7 +1,8 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
-import { getPublicSupabaseEnv } from '@web/lib/supabase-env';
+import { applyCookies } from '@web/lib/auth-cookies';
+import { getPublicSupabaseEnv, supabaseCookieOptions } from '@web/lib/supabase-env';
 
 export async function createSupabaseServerClient(options?: {
   persistCookies?: boolean;
@@ -9,21 +10,19 @@ export async function createSupabaseServerClient(options?: {
   const { url, anonKey } = getPublicSupabaseEnv();
   const cookieStore = await cookies();
   return createServerClient(url, anonKey, {
+    cookieOptions: supabaseCookieOptions,
     cookies: {
       getAll() {
         return cookieStore.getAll();
       },
       setAll(
-        cookiesToSet: Array<{
-          name: string;
-          value: string;
-          options?: object;
-        }>,
+        cookiesToSet: Array<{ name: string; value: string; options?: object }>,
       ) {
         try {
-          for (const { name, value, options: cookieOptions } of cookiesToSet) {
-            cookieStore.set(name, value, cookieOptions);
-          }
+          applyCookies(
+            (name, value, cookieOptions) => cookieStore.set(name, value, cookieOptions),
+            cookiesToSet,
+          );
         } catch (error) {
           // Server Components cannot set cookies; middleware refreshes the session.
           // Server Actions must persist the session or login will appear to no-op.

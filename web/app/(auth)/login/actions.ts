@@ -1,6 +1,6 @@
 'use server';
 
-import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
 
 import { getAuthErrorMessage } from '@/domain/errors/auth-error';
 import { normalizeRole } from '@/features/auth/roles';
@@ -12,6 +12,7 @@ import { createSupabaseServerClient } from '@web/lib/supabase-server';
 export type AuthFormState = {
   error: string | null;
   needsEmailVerification?: boolean;
+  redirectTo?: string | null;
 };
 
 const VALIDATION_COPY: Record<string, string> = {
@@ -68,5 +69,7 @@ export async function loginAction(
       : null,
   );
 
-  redirect(destinationForRole(role, String(formData.get('next') ?? '')));
+  const redirectTo = destinationForRole(role, String(formData.get('next') ?? ''));
+  revalidatePath('/', 'layout');
+  return { error: null, redirectTo };
 }

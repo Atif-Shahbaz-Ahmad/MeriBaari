@@ -1,7 +1,11 @@
 import { createBrowserClient } from '@supabase/ssr';
 
 import { AuthError } from '@/domain/errors/auth-error';
-import { getPublicSupabaseEnv, isPublicSupabaseConfigured } from '@web/lib/supabase-env';
+import {
+  getPublicSupabaseEnv,
+  isPublicSupabaseConfigured,
+  supabaseCookieOptions,
+} from '@web/lib/supabase-env';
 
 export const isSupabaseConfigured = isPublicSupabaseConfigured();
 
@@ -13,7 +17,9 @@ export function getSupabase(): ReturnType<typeof createBrowserClient> | null {
   if (typeof window === 'undefined') return null;
   if (!client) {
     const { url, anonKey } = getPublicSupabaseEnv();
-    client = createBrowserClient(url, anonKey);
+    client = createBrowserClient(url, anonKey, {
+      cookieOptions: supabaseCookieOptions,
+    });
   }
   return client;
 }

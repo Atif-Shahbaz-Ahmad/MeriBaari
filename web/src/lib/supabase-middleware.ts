@@ -1,7 +1,16 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-import { getPublicSupabaseEnv } from './supabase-env';
+import { applyCookies } from './auth-cookies';
+import { getPublicSupabaseEnv, supabaseCookieOptions } from './supabase-env';
+
+export function redirectWithSessionCookies(url: URL, source: NextResponse) {
+  const redirectResponse = NextResponse.redirect(url);
+  for (const cookie of source.cookies.getAll()) {
+    redirectResponse.cookies.set(cookie);
+  }
+  return redirectResponse;
+}
 
 export async function updateSession(request: NextRequest) {
   const { url, anonKey } = getPublicSupabaseEnv();
@@ -10,24 +19,22 @@ export async function updateSession(request: NextRequest) {
   if (!url || !anonKey) return { response, user: null, role: null as string | null };
 
   const supabase = createServerClient(url, anonKey, {
+    cookieOptions: supabaseCookieOptions,
     cookies: {
       getAll() {
         return request.cookies.getAll();
       },
       setAll(
-        cookiesToSet: Array<{
-          name: string;
-          value: string;
-          options?: Record<string, unknown>;
-        }>,
+        cookiesToSet: Array<{ name: string; value: string; options?: object }>,
       ) {
         for (const { name, value } of cookiesToSet) {
           request.cookies.set(name, value);
         }
         response = NextResponse.next({ request });
-        for (const { name, value, options } of cookiesToSet) {
-          response.cookies.set(name, value, options as never);
-        }
+        applyCookies(
+          (name, value, options) => response.cookies.set(name, value, options),
+          cookiesToSet,
+        );
       },
     },
   });

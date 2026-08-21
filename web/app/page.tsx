@@ -16,12 +16,12 @@ export default async function MarketingPage() {
   return (
     <SplitHeroLayout imageSrc={resolveHeroImageSrc()}>
       <Logo />
-      <h1 className="mt-6 text-3xl font-bold leading-tight tracking-tight lg:text-4xl">
+      <h1 className="mt-4 text-2xl font-bold leading-tight tracking-tight md:text-3xl lg:text-4xl">
         Skip the wait.
         <br />
         Take your turn.
       </h1>
-      <p className="mt-3 text-sm leading-relaxed text-ink-secondary lg:text-base">
+      <p className="mt-2 text-sm leading-relaxed text-ink-secondary lg:text-base">
         Discover businesses, join live queues, and track your ticket — or run
         your queue from a desktop workspace.
       </p>
