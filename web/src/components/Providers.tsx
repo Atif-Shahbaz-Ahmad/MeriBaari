@@ -8,13 +8,16 @@ import { queryClient } from '@/lib/query-client';
 import { useAppBootstrap, useAuth } from '@/hooks/use-auth';
 import { useColorScheme } from '@/hooks/use-theme';
 import { usePreferencesStore } from '@/store/preferences-store';
+import { useThemeStore } from '@/store/theme-store';
 import { applyLanguage } from '@/lib/i18n/rtl';
 
 function ThemeSync({ children }: PropsWithChildren) {
   const scheme = useColorScheme();
+  const isHydrated = useThemeStore((state) => state.isHydrated);
   useEffect(() => {
+    if (!isHydrated) return;
     document.documentElement.classList.toggle('dark', scheme === 'dark');
-  }, [scheme]);
+  }, [scheme, isHydrated]);
   return <>{children}</>;
 }
 

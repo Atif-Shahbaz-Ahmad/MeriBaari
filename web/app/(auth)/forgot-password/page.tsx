@@ -8,11 +8,9 @@ import { useAuth } from '@/hooks/use-auth';
 import { useTranslation } from '@/hooks/use-translation';
 import { Button, Card, Input } from '@web/components/ui';
 import { Logo } from '@web/components/Logo';
-import { useColorScheme } from '@/hooks/use-theme';
 
 export default function ForgotPasswordPage() {
   const { t } = useTranslation();
-  const scheme = useColorScheme();
   const { resetPassword, isLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +34,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4">
-      <Logo variant={scheme === 'dark' ? 'dark' : 'light'} />
+      <Logo />
       <Card className="mt-8 space-y-4">
         <h1 className="text-2xl font-bold">{t('auth.forgot.title')}</h1>
         <p className="text-sm text-ink-secondary">{t('auth.forgot.subtitle')}</p>

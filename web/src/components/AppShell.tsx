@@ -22,7 +22,6 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '@/hooks/use-auth';
-import { useColorScheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/use-translation';
 import { useUnreadNotificationCount } from '@/features/notifications/hooks/use-notifications';
 import { ConnectionBanner } from '@web/components/ConnectionBanner';
@@ -41,7 +40,6 @@ export function AppShell({
 }) {
   const { t } = useTranslation();
   const { user, signOut, isLoading } = useAuth();
-  const scheme = useColorScheme();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const unread = useUnreadNotificationCount();
@@ -85,7 +83,7 @@ export function AppShell({
         Skip to content
       </a>
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-surface-card px-4 py-3 lg:hidden">
-        <Logo variant={scheme === 'dark' ? 'dark' : 'light'} showTagline={false} />
+        <Logo showTagline={false} />
         <button
           type="button"
           className="rounded-xl border border-line px-3 py-2 text-sm"
@@ -114,7 +112,7 @@ export function AppShell({
 
       <div className="mx-auto flex max-w-[1600px]">
         <aside className="sticky top-0 hidden h-screen w-64 shrink-0 overflow-y-auto border-r border-line bg-surface-card p-4 lg:block">
-          <Logo variant={scheme === 'dark' ? 'dark' : 'light'} />
+          <Logo />
           <p className="mt-4 truncate text-sm text-ink-secondary">
             {user?.fullName || user?.email}
           </p>
