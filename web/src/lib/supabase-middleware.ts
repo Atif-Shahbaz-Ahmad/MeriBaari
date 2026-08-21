@@ -1,15 +1,10 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { getPublicSupabaseEnv } from './supabase-env';
+
 export async function updateSession(request: NextRequest) {
-  const url =
-    process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.EXPO_PUBLIC_SUPABASE_URL ||
-    '';
-  const anonKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
-    '';
+  const { url, anonKey } = getPublicSupabaseEnv();
 
   let response = NextResponse.next({ request });
   if (!url || !anonKey) return { response, user: null, role: null as string | null };

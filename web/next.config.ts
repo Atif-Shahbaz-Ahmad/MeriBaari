@@ -86,10 +86,18 @@ const aliases: Record<string, string> = {
   // and makes client hooks see a null dispatcher during prerender.
 };
 
-const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseUrl = (
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  process.env.EXPO_PUBLIC_SUPABASE_URL ||
+  ''
+).trim();
+const supabaseAnonKey = (
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  ''
+).trim();
 const sentryDsn = process.env.NEXT_PUBLIC_SENTRY_DSN || '';
 const sentryRelease =
   process.env.NEXT_PUBLIC_SENTRY_RELEASE ||
@@ -117,12 +125,20 @@ const nextConfig: NextConfig = {
     },
   },
   env: {
-    NEXT_PUBLIC_SUPABASE_URL: supabaseUrl,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: supabaseAnonKey,
-    EXPO_PUBLIC_SUPABASE_URL: supabaseUrl,
-    EXPO_PUBLIC_SUPABASE_ANON_KEY: supabaseAnonKey,
-    NEXT_PUBLIC_SENTRY_DSN: sentryDsn,
-    NEXT_PUBLIC_SENTRY_RELEASE: sentryRelease,
+    ...(supabaseUrl
+      ? {
+          NEXT_PUBLIC_SUPABASE_URL: supabaseUrl,
+          EXPO_PUBLIC_SUPABASE_URL: supabaseUrl,
+        }
+      : {}),
+    ...(supabaseAnonKey
+      ? {
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: supabaseAnonKey,
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: supabaseAnonKey,
+        }
+      : {}),
+    ...(sentryDsn ? { NEXT_PUBLIC_SENTRY_DSN: sentryDsn } : {}),
+    ...(sentryRelease ? { NEXT_PUBLIC_SENTRY_RELEASE: sentryRelease } : {}),
     ...(process.env.VERCEL_ENV ? { NEXT_PUBLIC_VERCEL_ENV: process.env.VERCEL_ENV } : {}),
   },
   webpack: (config) => {

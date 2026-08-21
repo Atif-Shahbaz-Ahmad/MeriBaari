@@ -1,81 +1,60 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useState, type FormEvent } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useActionState } from 'react';
 
-import { getAuthErrorMessage } from '@/domain/errors/auth-error';
-import { loginSchema } from '@/features/auth/schemas';
-import { useAuth } from '@/hooks/use-auth';
 import { useTranslation } from '@/hooks/use-translation';
-import { useAuthStore } from '@/store/auth-store';
 import { AuthTabs } from '@web/components/AuthTabs';
 import { Logo } from '@web/components/Logo';
 import { UnderlineField, UnderlinePasswordField } from '@web/components/UnderlineField';
 import { Button } from '@web/components/ui';
-import { homeForRole } from '@web/lib/cn';
+
+import { loginAction, type AuthFormState } from './actions';
+
+const initialState: AuthFormState = { error: null };
 
 export function LoginForm() {
   const { t } = useTranslation();
-  const { login } = useAuth();
-  const router = useRouter();
   const search = useSearchParams();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  const onSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    const parsed = loginSchema.safeParse({ email, password });
-    if (!parsed.success) {
-      setError(t(parsed.error.issues[0]?.message ?? 'validation.email'));
-      return;
-    }
-    setSubmitting(true);
-    try {
-      await login(parsed.data.email.trim(), parsed.data.password);
-      const next = search.get('next');
-      const role = useAuthStore.getState().role;
-      router.replace(next || homeForRole(role));
-      router.refresh();
-    } catch (err) {
-      setError(getAuthErrorMessage(err));
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const next = search.get('next') ?? '';
+  const [state, formAction, pending] = useActionState(loginAction, initialState);
 
   return (
     <>
       <Logo />
       <h1 className="mt-5 text-3xl font-bold tracking-tight">Welcome back</h1>
       <AuthTabs active="login" />
-      <form className="mt-6 space-y-5" onSubmit={(e) => void onSubmit(e)}>
+      <form action={formAction} className="mt-6 space-y-5">
+        <input type="hidden" name="next" value={next} />
         <UnderlineField
           label="Enter your email"
           name="email"
           type="email"
           autoComplete="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          required
         />
         <UnderlinePasswordField
           label="Enter Password"
           name="password"
           autoComplete="current-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          required
         />
         <div className="flex justify-end">
           <Link className="text-xs font-semibold text-primary" href="/forgot-password">
             Forgot password
           </Link>
         </div>
-        {error ? <p className="text-sm text-danger">{error}</p> : null}
-        <Button className="w-full rounded-lg py-3" type="submit" disabled={submitting}>
-          {submitting ? 'Signing in…' : t('auth.login.cta')}
+        {state.error ? (
+          <p
+            className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger"
+            role="alert"
+          >
+            {state.error}
+          </p>
+        ) : null}
+        <Button className="w-full rounded-lg py-3" type="submit" disabled={pending}>
+          {pending ? 'Signing in…' : t('auth.login.cta')}
         </Button>
       </form>
     </>

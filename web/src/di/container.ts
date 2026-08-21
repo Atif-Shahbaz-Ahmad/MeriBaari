@@ -138,7 +138,10 @@ export interface AppContainer {
 }
 
 export function createAppContainer(): AppContainer {
-  const useSupabaseAuth = isSupabaseConfigured;
+  const useSupabaseAuth =
+    isSupabaseConfigured ||
+    process.env.NODE_ENV === 'production' ||
+    process.env.VERCEL === '1';
 
   const profileRepository: ProfileRepository = useSupabaseAuth
     ? new SupabaseProfileRepository()

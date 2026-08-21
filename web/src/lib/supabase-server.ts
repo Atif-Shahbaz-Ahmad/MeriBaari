@@ -1,20 +1,12 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
-function env() {
-  const url =
-    process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.EXPO_PUBLIC_SUPABASE_URL ||
-    '';
-  const anonKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
-    '';
-  return { url, anonKey };
-}
+import { getPublicSupabaseEnv } from '@web/lib/supabase-env';
 
-export async function createSupabaseServerClient() {
-  const { url, anonKey } = env();
+export async function createSupabaseServerClient(options?: {
+  persistCookies?: boolean;
+}) {
+  const { url, anonKey } = getPublicSupabaseEnv();
   const cookieStore = await cookies();
   return createServerClient(url, anonKey, {
     cookies: {
@@ -29,11 +21,13 @@ export async function createSupabaseServerClient() {
         }>,
       ) {
         try {
-          for (const { name, value, options } of cookiesToSet) {
-            cookieStore.set(name, value, options);
+          for (const { name, value, options: cookieOptions } of cookiesToSet) {
+            cookieStore.set(name, value, cookieOptions);
           }
-        } catch {
-          // Server Components cannot always set cookies; middleware refreshes the session.
+        } catch (error) {
+          // Server Components cannot set cookies; middleware refreshes the session.
+          // Server Actions must persist the session or login will appear to no-op.
+          if (options?.persistCookies) throw error;
         }
       },
     },
@@ -41,7 +35,7 @@ export async function createSupabaseServerClient() {
 }
 
 export async function getServerSession() {
-  const { url, anonKey } = env();
+  const { url, anonKey } = getPublicSupabaseEnv();
   if (!url || !anonKey) return { user: null, role: null as string | null };
   const supabase = await createSupabaseServerClient();
   const {
