@@ -45,11 +45,9 @@ export function hasValidCoords(
   return toFiniteNumber(latitude) != null && toFiniteNumber(longitude) != null;
 }
 
-/**
- * Static map preview URL (OpenStreetMap community staticmap).
- * No API key / no native map dependency — suitable for Expo Go and SDK 54.
- * Callers should render a local fallback if the image fails to load.
- */
+export { buildInteractiveMapHtml } from '@/lib/interactive-map-html';
+
+/** @deprecated Use buildInteractiveMapHtml — static OSM previews fail in production. */
 export function buildStaticMapPreviewUrl(
   latitude: number,
   longitude: number,

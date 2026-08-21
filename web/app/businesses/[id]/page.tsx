@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { getOrganizationCategoryLabel } from '@/constants/organization-categories';
 import { getPublicOrganization } from '@web/lib/public-organizations';
 import { createSupabaseServerClient } from '@web/lib/supabase-server';
+import { LocationMap } from '@web/components/LocationMap';
 
 export default async function PublicBusinessDetailPage({
   params,
@@ -29,6 +30,12 @@ export default async function PublicBusinessDetailPage({
       </p>
       <p>{org.description}</p>
       <p className="text-sm">{org.address}</p>
+      <LocationMap
+        latitude={org.latitude}
+        longitude={org.longitude}
+        label={org.name}
+        address={org.address}
+      />
       <section>
         <h2 className="font-semibold">Departments</h2>
         <ul className="mt-2 list-disc pl-5">

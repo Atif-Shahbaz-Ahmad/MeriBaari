@@ -8,7 +8,8 @@ import { isOrganizationPublic } from '@/domain/models';
 import { useOrganization } from '@/features/organization/hooks/use-organizations';
 import { useDepartments } from '@/features/structure/hooks/use-structure-queries';
 import { useIsFavorite, useToggleFavorite } from '@/features/favorites/hooks/use-favorites';
-import { buildStaticMapPreviewUrl, hasValidCoords, openMapsLocation } from '@/lib/geo';
+import { LocationMap } from '@web/components/LocationMap';
+import { hasValidCoords } from '@/lib/geo';
 import {
   Button,
   Card,
@@ -38,10 +39,6 @@ export default function JoinBusinessPage() {
   }
 
   const publicLive = isOrganizationPublic(org);
-  const mapUrl =
-    hasValidCoords(org.latitude, org.longitude) && org.latitude && org.longitude
-      ? buildStaticMapPreviewUrl(org.latitude, org.longitude)
-      : null;
 
   return (
     <div className="space-y-6">
@@ -73,25 +70,13 @@ export default function JoinBusinessPage() {
       </header>
       {org.description ? <p>{org.description}</p> : null}
       <p className="text-sm text-ink-secondary">{org.address}</p>
-      {mapUrl ? (
-        <button
-          type="button"
-          onClick={() =>
-            void openMapsLocation({
-              latitude: org.latitude,
-              longitude: org.longitude,
-              label: org.name,
-              address: org.address,
-            })
-          }
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={mapUrl}
-            alt={`Map of ${org.name}`}
-            className="h-48 w-full rounded-2xl object-cover"
-          />
-        </button>
+      {hasValidCoords(org.latitude, org.longitude) ? (
+        <LocationMap
+          latitude={org.latitude}
+          longitude={org.longitude}
+          label={org.name}
+          address={org.address}
+        />
       ) : null}
 
       <section>

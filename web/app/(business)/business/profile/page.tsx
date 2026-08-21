@@ -13,6 +13,7 @@ import {
 import { useMyOrganization } from '@/features/organization/hooks/use-organizations';
 import { useTranslation } from '@/hooks/use-translation';
 import { Button, Card, Input, LoadingSkeleton } from '@web/components/ui';
+import { LocationMap } from '@web/components/LocationMap';
 import type { OrganizationCategory } from '@/types/organization';
 
 export default function BusinessProfilePage() {
@@ -103,6 +104,12 @@ export default function BusinessProfilePage() {
           label="Address"
           defaultValue={org.address}
           onChange={(e) => setAddress(e.target.value)}
+        />
+        <LocationMap
+          latitude={org.latitude}
+          longitude={org.longitude}
+          label={org.name}
+          address={address || org.address}
         />
         <Button
           onClick={() =>

@@ -1,7 +1,6 @@
-import { useState } from 'react';
+import { useMemo } from 'react';
 import {
   Alert,
-  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -9,13 +8,14 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { ExternalLink, MapPin } from 'lucide-react-native';
 
 import { Colors } from '@/constants/colors';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import {
-  buildStaticMapPreviewUrl,
+  buildInteractiveMapHtml,
   hasValidCoords,
   openMapsLocation,
 } from '@/lib/geo';
@@ -35,8 +35,8 @@ type LocationMapPreviewProps = {
 };
 
 /**
- * Tappable location preview: static map image (no react-native-maps) + address.
- * Tap opens the device Maps app via `openMapsLocation()`.
+ * Interactive street map (pan / zoom / pin) plus a button to open the
+ * device Maps app. Uses OpenStreetMap tiles so no Google Maps API key is required.
  */
 export function LocationMapPreview({
   latitude,
@@ -49,18 +49,24 @@ export function LocationMapPreview({
 }: LocationMapPreviewProps) {
   const theme = useTheme();
   const { t } = useTranslation();
-  const [imageFailed, setImageFailed] = useState(false);
 
-  if (!hasValidCoords(latitude, longitude)) {
+  const html = useMemo(() => {
+    if (!hasValidCoords(latitude, longitude)) return null;
+    return buildInteractiveMapHtml({
+      latitude,
+      longitude: longitude as number,
+      label,
+    });
+  }, [latitude, longitude, label]);
+
+  if (!html || !hasValidCoords(latitude, longitude)) {
     return null;
   }
 
-  // hasValidCoords guarantees both values are finite numbers.
   const lat = latitude;
   const lng = longitude as number;
   const addressLine = address?.trim() || null;
   const cityLine = city?.trim() || null;
-  const mapUri = buildStaticMapPreviewUrl(lat, lng);
 
   const onOpen = () => {
     void openMapsLocation({
@@ -70,55 +76,41 @@ export function LocationMapPreview({
       address: [addressLine, cityLine].filter(Boolean).join(', '),
     }).then((opened) => {
       if (!opened) {
-        Alert.alert(
-          t('maps.openFailedTitle'),
-          t('maps.openFailedBody'),
-        );
+        Alert.alert(t('maps.openFailedTitle'), t('maps.openFailedBody'));
       }
     });
   };
 
   return (
     <View style={[styles.wrap, style]}>
-      <Pressable
-        onPress={onOpen}
-        accessibilityRole="button"
-        accessibilityLabel={t('maps.openA11y')}
-        accessibilityHint={t('maps.openHint')}
-        style={({ pressed }) => [
+      <View
+        style={[
           styles.mapFrame,
-          {
-            borderColor: theme.border,
-            backgroundColor: theme.tints.muted.bg,
-            opacity: pressed ? 0.92 : 1,
-          },
+          { borderColor: theme.border, backgroundColor: theme.tints.muted.bg },
         ]}
       >
-        {!imageFailed ? (
-          <Image
-            source={{ uri: mapUri }}
-            style={styles.mapImage}
-            resizeMode="cover"
-            accessibilityIgnoresInvertColors
-            onError={() => setImageFailed(true)}
-          />
-        ) : (
-          <View
-            style={[styles.fallback, { backgroundColor: theme.tints.primary.bg }]}
-          >
-            <View style={[styles.fallbackGrid, { borderColor: theme.tints.primary.border }]} />
-            <MapPin size={36} color={Colors.primary} strokeWidth={2.25} />
-            <Text style={[styles.fallbackLabel, { color: theme.tints.primary.fg }]}>
-              {t('maps.previewFallback')}
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.tapBadge}>
+        <WebView
+          source={{ html, baseUrl: 'https://unpkg.com/' }}
+          style={styles.mapWebView}
+          originWhitelist={['*']}
+          javaScriptEnabled
+          domStorageEnabled
+          scrollEnabled={false}
+          setSupportMultipleWindows={false}
+          androidLayerType="hardware"
+          accessibilityLabel={label ? `Map of ${label}` : 'Map'}
+        />
+        <Pressable
+          onPress={onOpen}
+          accessibilityRole="button"
+          accessibilityLabel={t('maps.openA11y')}
+          accessibilityHint={t('maps.openHint')}
+          style={styles.tapBadge}
+        >
           <ExternalLink size={14} color={Colors.textInverse} />
           <Text style={styles.tapBadgeText}>{t('maps.tapToOpen')}</Text>
-        </View>
-      </Pressable>
+        </Pressable>
+      </View>
 
       {showAddress ? (
         <View style={styles.addressBlock}>
@@ -153,36 +145,20 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   mapFrame: {
-    height: 168,
+    height: 220,
     borderRadius: Radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
   },
-  mapImage: {
-    ...StyleSheet.absoluteFillObject,
-    width: '100%',
-    height: '100%',
-  },
-  fallback: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.xs,
-  },
-  fallbackGrid: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.35,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-  },
-  fallbackLabel: {
-    ...Typography.caption,
-    fontWeight: '600',
+  mapWebView: {
+    flex: 1,
+    backgroundColor: 'transparent',
   },
   tapBadge: {
     position: 'absolute',
     left: Spacing.sm,
     bottom: Spacing.sm,
+    zIndex: 2,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,

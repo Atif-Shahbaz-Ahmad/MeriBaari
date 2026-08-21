@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import { getOrganizationCategoryLabel } from '@/constants/organization-categories';
 import { getPublicOrganization } from '../lib/public-organizations';
 import { Card, EmptyState, LoadingSkeleton } from '@web/components/ui';
+import { LocationMap } from '@web/components/LocationMap';
 
 export default function PublicBusinessPage() {
   const { id } = useParams();
@@ -32,6 +33,14 @@ export default function PublicBusinessPage() {
       <Card>
         <p>{org.description}</p>
         <p className="mt-2 text-sm text-ink-secondary">{org.address}</p>
+        <div className="mt-3">
+          <LocationMap
+            latitude={org.latitude}
+            longitude={org.longitude}
+            label={org.name}
+            address={org.address}
+          />
+        </div>
       </Card>
       <Link
         className="inline-flex rounded-xl bg-primary px-4 py-2 font-semibold text-white"

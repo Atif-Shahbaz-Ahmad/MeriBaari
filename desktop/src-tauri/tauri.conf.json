@@ -24,7 +24,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' ipc: http://ipc.localhost http://tauri.localhost; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob: data:; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost http://tauri.localhost https://*.supabase.co wss://*.supabase.co https://*.supabase.in wss://*.supabase.in https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.sentry.io; worker-src 'self' blob:"
+      "csp": "default-src 'self' ipc: http://ipc.localhost http://tauri.localhost; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: blob: https:; media-src 'self' blob: data:; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost http://tauri.localhost https://*.supabase.co wss://*.supabase.co https://*.supabase.in wss://*.supabase.in https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.sentry.io https://unpkg.com https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; frame-src 'self' blob: data:; worker-src 'self' blob:"
     }
   },
   "bundle": {

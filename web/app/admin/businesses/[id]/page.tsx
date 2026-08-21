@@ -12,6 +12,7 @@ import {
 import { useTranslation } from '@/hooks/use-translation';
 import type { OrganizationCategory } from '@/types/organization';
 import { Button, Card, ErrorState, Input, LoadingSkeleton } from '@web/components/ui';
+import { LocationMap } from '@web/components/LocationMap';
 
 export default function AdminBusinessPage() {
   const { t } = useTranslation();
@@ -90,6 +91,12 @@ export default function AdminBusinessPage() {
           {t('admin.review.address')}: {business.address || '—'}
           {business.city ? `, ${business.city}` : ''}
         </p>
+        <LocationMap
+          latitude={business.latitude}
+          longitude={business.longitude}
+          label={business.name}
+          address={business.address}
+        />
         <p>
           {t('admin.business.liveSince')}:{' '}
           {business.approvedAt
