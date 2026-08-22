@@ -2,17 +2,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { AuthHeroLayout } from '@/components/auth/AuthHeroLayout';
 import { Logo } from '@/components/layout/Logo';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -34,7 +26,6 @@ import { useAuthStore } from '@/store/auth-store';
 export default function LoginScreen() {
   const theme = useTheme();
   const scheme = useColorScheme();
-  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const { login, isLoading } = useAuth();
   const [error, setError] = useState<string | null>(null);
@@ -55,22 +46,8 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: theme.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingTop: insets.top + Spacing.lg,
-            paddingBottom: insets.bottom + Spacing.lg,
-          },
-        ]}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-      >
-        <Logo variant={scheme === 'dark' ? 'dark' : 'light'} size="md" />
+    <AuthHeroLayout>
+        <Logo variant={scheme === 'dark' ? 'dark' : 'light'} size="sm" showTagline={false} />
 
         <View style={styles.hero}>
           <Text style={[styles.title, { color: theme.text }]}>{t('auth.login.title')}</Text>
@@ -157,16 +134,11 @@ export default function LoginScreen() {
             </Text>
           </Pressable>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </AuthHeroLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    paddingHorizontal: Spacing.md,
-    gap: Spacing.lg,
-  },
   hero: {
     gap: Spacing.sm,
   },

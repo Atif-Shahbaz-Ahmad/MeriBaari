@@ -2,6 +2,7 @@ import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   Building2,
   Car,
@@ -174,20 +175,28 @@ export default function OrganizationDetailsScreen() {
           <FlowHeader title="Details" onBack={() => router.back()} />
         </View>
 
-        <Animated.View entering={FadeInDown.duration(400)} style={styles.banner}>
-          <View style={styles.bannerGlow} />
-          <View style={styles.bannerTop}>
-            <View style={styles.logoLarge}>
-              {organization.logoUrl ? (
-                <Image
-                  source={{ uri: organization.logoUrl }}
-                  style={styles.logoImage}
-                  accessibilityIgnoresInvertColors
-                />
-              ) : (
+        <Animated.View entering={FadeInDown.duration(400)} style={styles.hero}>
+          {organization.logoUrl ? (
+            <Image
+              source={{ uri: organization.logoUrl }}
+              style={styles.heroImage}
+              resizeMode="cover"
+              accessibilityIgnoresInvertColors
+              accessibilityLabel={`${organization.name} photo`}
+            />
+          ) : (
+            <View style={[styles.heroFallback, { backgroundColor: Colors.primary }]}>
+              <View style={styles.bannerGlow} />
+              <View style={styles.logoLarge}>
                 <Icon size={40} color={Colors.primary} strokeWidth={1.75} />
-              )}
+              </View>
             </View>
+          )}
+          <LinearGradient
+            colors={['transparent', 'rgba(15, 23, 42, 0.78)']}
+            style={styles.heroScrim}
+          />
+          <View style={styles.heroTop}>
             <FavoriteToggleButton
               isFavorite={isFavorite}
               loading={favoriteBusy && toggleFavorite.isPending}
@@ -195,11 +204,13 @@ export default function OrganizationDetailsScreen() {
               style={styles.favoriteBtn}
             />
           </View>
-          <Text style={styles.bannerName}>{organization.name}</Text>
-          <Text style={styles.bannerCategory}>
-            {categoryLabel}
-            {organization.city ? ` · ${organization.city}` : ''}
-          </Text>
+          <View style={styles.heroCopy}>
+            <Text style={styles.bannerName}>{organization.name}</Text>
+            <Text style={styles.bannerCategory}>
+              {categoryLabel}
+              {organization.city ? ` · ${organization.city}` : ''}
+            </Text>
+          </View>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(80).duration(400)} style={styles.padded}>
@@ -326,28 +337,47 @@ const styles = StyleSheet.create({
   padded: {
     paddingHorizontal: Spacing.md,
   },
-  banner: {
+  hero: {
     marginHorizontal: Spacing.md,
+    height: 220,
     borderRadius: Radius['2xl'],
-    backgroundColor: Colors.primary,
-    paddingVertical: Spacing.xl,
-    paddingHorizontal: Spacing.lg,
-    alignItems: 'center',
     overflow: 'hidden',
-    gap: Spacing.sm,
+    justifyContent: 'flex-end',
+    backgroundColor: Colors.primary,
   },
-  bannerTop: {
+  heroImage: {
+    ...StyleSheet.absoluteFillObject,
     width: '100%',
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    height: '100%',
+  },
+  heroFallback: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  favoriteBtn: {
+  heroScrim: {
     position: 'absolute',
+    left: 0,
     right: 0,
-    top: 0,
+    bottom: 0,
+    height: 140,
+  },
+  heroTop: {
+    position: 'absolute',
+    top: Spacing.md,
+    right: Spacing.md,
+    zIndex: 2,
+  },
+  favoriteBtn: {
     backgroundColor: 'rgba(255,255,255,0.92)',
     borderColor: 'rgba(255,255,255,0.5)',
+  },
+  heroCopy: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.lg,
+    paddingTop: Spacing.xl,
+    gap: 4,
+    zIndex: 1,
   },
   bannerGlow: {
     position: 'absolute',
@@ -365,22 +395,15 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.textInverse,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Spacing.sm,
     overflow: 'hidden',
-  },
-  logoImage: {
-    width: 72,
-    height: 72,
   },
   bannerName: {
     ...Typography.h2,
     color: Colors.textInverse,
-    textAlign: 'center',
   },
   bannerCategory: {
     ...Typography.body,
-    color: 'rgba(255,255,255,0.85)',
-    textAlign: 'center',
+    color: 'rgba(255,255,255,0.88)',
   },
   infoCard: {
     gap: Spacing.sm,

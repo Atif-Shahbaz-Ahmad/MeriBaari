@@ -23,6 +23,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import '@/global.css';
 
+import { Logo } from '@/components/layout/Logo';
 import { Colors } from '@/constants/colors';
 import { useColorScheme } from '@/hooks/use-theme';
 import { AppProviders } from '@/lib/providers';
@@ -110,6 +111,14 @@ const errorStyles = RNStyleSheet.create({
   },
 });
 
+const bootStyles = RNStyleSheet.create({
+  wrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
+
 function RootLayout() {
   const colorScheme = useColorScheme();
   const navigationRef = useNavigationContainerRef();
@@ -124,14 +133,20 @@ function RootLayout() {
     sentryNavigationIntegration.registerNavigationContainer(navigationRef);
   }, [navigationRef]);
 
-  useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync().catch(() => undefined);
-    }
-  }, [fontsLoaded, fontError]);
-
   if (!fontsLoaded && !fontError) {
-    return null;
+    return (
+      <View
+        style={[
+          bootStyles.wrap,
+          {
+            backgroundColor:
+              colorScheme === 'dark' ? Colors.darkBackground : Colors.background,
+          },
+        ]}
+      >
+        <Logo variant={colorScheme === 'dark' ? 'dark' : 'light'} size="lg" showTagline />
+      </View>
+    );
   }
 
   return (

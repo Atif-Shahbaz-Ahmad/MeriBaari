@@ -114,6 +114,8 @@ console.log(
   `Building standalone APK (host=${new URL(supabaseUrl).host}, ${abi}, no dev client)`,
 );
 
+run('powershell', ['-ExecutionPolicy', 'Bypass', '-File', path.join(ROOT, 'scripts', 'sync-mobile-brand-assets.ps1')], productionEnv);
+
 withDevClientExcluded(() => {
   if (process.env.SKIP_PREBUILD !== '1') {
     run('npx', ['expo', 'prebuild', '--platform', 'android'], productionEnv);

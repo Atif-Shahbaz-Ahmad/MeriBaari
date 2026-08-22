@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { createElement, useMemo } from 'react';
 import {
   Alert,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -89,15 +90,8 @@ export function LocationMapPreview({
           { borderColor: theme.border, backgroundColor: theme.tints.muted.bg },
         ]}
       >
-        <WebView
-          source={{ html, baseUrl: 'https://unpkg.com/' }}
-          style={styles.mapWebView}
-          originWhitelist={['*']}
-          javaScriptEnabled
-          domStorageEnabled
-          scrollEnabled={false}
-          setSupportMultipleWindows={false}
-          androidLayerType="hardware"
+        <MapCanvas
+          html={html}
           accessibilityLabel={label ? `Map of ${label}` : 'Map'}
         />
         <Pressable
@@ -140,6 +134,49 @@ export function LocationMapPreview({
   );
 }
 
+/**
+ * Leaflet HTML map. Native uses WebView; Expo web uses an iframe because
+ * react-native-webview does not run in the browser.
+ */
+function MapCanvas({
+  html,
+  accessibilityLabel,
+}: {
+  html: string;
+  accessibilityLabel: string;
+}) {
+  if (Platform.OS === 'web') {
+    return createElement('iframe', {
+      srcDoc: html,
+      title: accessibilityLabel,
+      style: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        borderWidth: 0,
+        backgroundColor: 'transparent',
+      },
+      referrerPolicy: 'no-referrer',
+    });
+  }
+
+  return (
+    <WebView
+      source={{ html, baseUrl: 'https://unpkg.com/' }}
+      style={styles.mapWebView}
+      originWhitelist={['*']}
+      javaScriptEnabled
+      domStorageEnabled
+      scrollEnabled={false}
+      setSupportMultipleWindows={false}
+      androidLayerType="hardware"
+      accessibilityLabel={accessibilityLabel}
+    />
+  );
+}
+
 const styles = StyleSheet.create({
   wrap: {
     gap: Spacing.sm,
@@ -149,6 +186,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
+    position: 'relative',
   },
   mapWebView: {
     flex: 1,

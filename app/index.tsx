@@ -1,4 +1,5 @@
 import { Redirect } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import Animated, {
@@ -40,6 +41,10 @@ export default function SplashGate() {
   }));
 
   const fadeOut = useSharedValue(1);
+
+  useEffect(() => {
+    SplashScreen.hideAsync().catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     if (isReady) {

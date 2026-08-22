@@ -2,18 +2,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { AuthHeroLayout } from '@/components/auth/AuthHeroLayout';
 import { RoleSelectCard } from '@/components/auth/RoleSelectCard';
 import { Logo } from '@/components/layout/Logo';
 import { Button } from '@/components/ui/Button';
@@ -38,7 +29,6 @@ export default function SignupScreen() {
   const theme = useTheme();
   const scheme = useColorScheme();
   const { t } = useTranslation();
-  const insets = useSafeAreaInsets();
   const { signup, isLoading, needsEmailVerification } = useAuth();
   const [role, setRole] = useState<UserRole | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -80,22 +70,8 @@ export default function SignupScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: theme.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingTop: insets.top + Spacing.lg,
-            paddingBottom: insets.bottom + Spacing.lg,
-          },
-        ]}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-      >
-        <Logo variant={scheme === 'dark' ? 'dark' : 'light'} size="md" />
+    <AuthHeroLayout>
+        <Logo variant={scheme === 'dark' ? 'dark' : 'light'} size="sm" showTagline={false} />
 
         <View style={styles.hero}>
           <Text style={[styles.title, { color: theme.text }]}>Create Account</Text>
@@ -239,16 +215,11 @@ export default function SignupScreen() {
             <Text style={[styles.back, { color: theme.textSecondary }]}>Back to Welcome</Text>
           </Pressable>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </AuthHeroLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    paddingHorizontal: Spacing.md,
-    gap: Spacing.lg,
-  },
   hero: {
     gap: Spacing.sm,
   },

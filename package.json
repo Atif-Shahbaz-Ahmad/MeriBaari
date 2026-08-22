@@ -20,6 +20,7 @@
     "desktop:typecheck": "npm run typecheck --prefix desktop",
     "android:preview": "npx eas-cli build --profile preview --platform android",
     "android:apk": "node scripts/build-android-apk.js",
+    "android:brand-assets": "powershell -ExecutionPolicy Bypass -File scripts/sync-mobile-brand-assets.ps1",
     "ios:preview": "npx eas-cli build --profile preview --platform ios"
   },
   "dependencies": {
